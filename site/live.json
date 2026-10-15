@@ -49,13 +49,19 @@
    "reports_in_window": 1,
    "joined_open_alert": false,
    "status": {
-    "state": "open",
+    "state": "acknowledged",
     "events": [
      {
       "at": "2026-10-15T22:02:40+00:00",
       "event": "paged",
       "by": "system",
       "note": "Product manager, Legal on-call, Trust & Safety"
+     },
+     {
+      "at": "2026-10-15T22:08:38+00:00",
+      "event": "acknowledged",
+      "by": "razberejik-cloud",
+      "note": ""
      }
     ]
    }
