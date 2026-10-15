@@ -3,7 +3,7 @@
 name: Live review intake
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
 permissions:
   contents: write
   issues: write
@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   intake:
-    if: contains(github.event.issue.labels.*.name, 'play-review')
+    if: >-
+      contains(github.event.issue.labels.*.name, 'play-review') ||
+      contains(github.event.issue.body, '### Review text')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -41,6 +43,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          [ -f live/comment.md ] || { echo "already processed"; exit 0; }
+          gh issue edit ${{ github.event.issue.number }} --add-label play-review || true
           gh issue comment ${{ github.event.issue.number }} --body-file live/comment.md
           if [ -f live/urgent.flag ]; then
             gh label create urgent --color B60205 --description "Paged product + Legal" 2>/dev/null || true

@@ -14,7 +14,7 @@ concurrency:
 jobs:
   status:
     if: >-
-      contains(github.event.issue.labels.*.name, 'play-review') &&
+      (contains(github.event.issue.labels.*.name, 'play-review') || contains(github.event.issue.body, '### Review text')) &&
       startsWith(github.event.comment.body, '/') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest

@@ -89,6 +89,9 @@ def main(body_file, number, url):
 
     # urgent page?
     live = json.load(open(LIVE, encoding="utf-8")) if os.path.exists(LIVE) else []
+    if any(x.get("issue") == int(number) for x in live):
+        print("Issue already processed; nothing to do.")       # opened + labeled both fire; handle once
+        return
     page = None
     typ = next((t for t, cfg in urgent.TYPES.items() if cfg["flags"] & set(flags)), None)
     if typ:
