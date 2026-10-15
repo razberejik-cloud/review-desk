@@ -25,6 +25,7 @@ import triage     # noqa: E402
 import urgent     # noqa: E402
 
 LIVE = os.path.join(ROOT, "site", "live.json")
+DB = os.path.join(ROOT, "data", "reviews.db")
 OWNERS = json.load(open(os.path.join(ROOT, "config", "owners.json"), encoding="utf-8"))
 
 # keyword topics for the fast path (the model does this properly in the daily run)
@@ -109,6 +110,7 @@ def main(body_file, number, url):
                  violations=violations, urgent=page)
     live.append(entry)
     json.dump(live, open(LIVE, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    save_to_db(entry, row)
 
     # the comment posted back on the issue = the page the owners receive
     gh = OWNERS.get("github_pm", {}).get(r["app"]) or os.environ.get("REPO_OWNER", "")
@@ -136,6 +138,41 @@ def main(body_file, number, url):
     elif os.path.exists(flag_path):
         os.remove(flag_path)
     print(json.dumps(entry, ensure_ascii=False, indent=1))
+
+
+def save_to_db(e, row):
+    """Append the review to the same database as the 17,623 existing ones. Nothing is deleted or replaced."""
+    import sqlite3
+    con = sqlite3.connect(DB)
+    pkg = con.execute("SELECT package_name FROM apps WHERE app_name=?", (e["app"],)).fetchone()[0]
+    if con.execute("SELECT 1 FROM reviews WHERE review_id=?", (e["id"],)).fetchone():
+        con.close(); return                     # same issue processed twice: keep the first
+    con.execute("""INSERT INTO reviews (review_id, package_name, author_name, text, star_rating, reviewer_language,
+                   app_version_name, thumbs_up, first_seen_at, last_modified_at, first_star_rating, times_edited)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,0)""",
+                (e["id"], pkg, "live test", e["text"], e["stars"], e["lang"], e["version"], 0,
+                 e["received_at"], e["received_at"], e["stars"]))
+    con.execute("INSERT INTO review_analysis VALUES (?,?,?,?,?,?,?,?)",
+                (e["id"], row["is_noise"], e["noise"], e["category"], row["category_score"], None, ",".join(e["flags"]), 0))
+    con.execute("INSERT INTO triage VALUES (?,?,?,?,?,?,?,?,?)",
+                (e["id"], e["lane"], e["reason"], 0, e["team"], e["sla"], e["draft"], e["reply_status"] or "queued_for_person",
+                 ",".join(e["violations"])))
+    if e["reply_status"] == "posted":
+        con.execute("UPDATE reviews SET developer_reply=?, replied_at=? WHERE review_id=?", (e["draft"], e["received_at"], e["id"]))
+    u = e["urgent"]
+    if u:
+        n = con.execute("SELECT COUNT(*) FROM urgent_alerts").fetchone()[0] + 1
+        aid = f"U{n:03d}"
+        con.execute("INSERT INTO urgent_alerts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (aid, u["type"], u["label"], e["app"], e["received_at"], e["received_at"], e["received_at"], 0, None,
+                     u["reports_in_window"], u["sla"], u["due"], json.dumps(u["paged"]), u["policy"], json.dumps(u["actions"]),
+                     json.dumps([e["id"]]), f"LIVE · {u['label']} · {e['app']}: {e['text'][:200]}"))
+        con.executemany("INSERT INTO urgent_notifications VALUES (?,?,?,?,?)",
+                        [(aid, role, addr, e["received_at"], "live review") for role, addr in u["paged"]])
+    con.commit()
+    total = con.execute("SELECT COUNT(*) FROM reviews").fetchone()[0]
+    con.close()
+    print(f"Saved to data/reviews.db (now {total:,} reviews)")
 
 
 ROLE = {"pm": "Product manager", "legal": "Legal on-call", "trust_safety": "Trust & Safety", "dpo": "Privacy officer",

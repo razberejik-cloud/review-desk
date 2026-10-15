@@ -30,7 +30,7 @@ The dashboard also replays the 60 mock days morning by morning (▶ or the date 
 | 6 | `pipeline/triage.py` | One lane per review, draft replies, 9-point policy guard, incident replies edited when the fix ships |
 | 6b | `pipeline/urgent.py` | Hourly rules-only check that pages owners (child safety 1 h, store policy 4 h, legal 4 h, privacy 24 h) |
 | 7 | `pipeline/export_dashboard.py` + `build_site.py` | Data for the dashboard in `site/` |
-| live | `live/intake.py` + `.github/workflows/intake.yml` | One new review → rules → lane → page → `site/live.json` → redeploy |
+| live | `live/intake.py` + `.github/workflows/intake.yml` | One new review → rules → lane → page → appended to `data/reviews.db` and `site/live.json` → redeploy. Existing reviews are never changed. |
 | check | `pipeline/evaluate.py` | Scores everything against `data/ground_truth.csv`, which the pipeline never reads |
 
 Run the full pipeline from scratch: open `notebooks/review_desk_pipeline.ipynb` in Google Colab and choose Run all (about 6-9 minutes, free CPU). The finished database is also in `data/reviews.db`.
