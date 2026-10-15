@@ -1,0 +1,52 @@
+# A new "Simulate a Play review" issue = a new review arriving.
+# Rules -> lane -> urgent page -> live.json -> comment on the issue -> redeploy the dashboard.
+name: Live review intake
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+  pages: write
+  id-token: write
+concurrency:
+  group: live-intake
+  cancel-in-progress: false
+jobs:
+  intake:
+    if: contains(github.event.issue.labels.*.name, 'play-review')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install numpy
+      - name: Route the review
+        env:
+          BODY: ${{ github.event.issue.body }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          printf '%s' "$BODY" > /tmp/body.md
+          python live/intake.py /tmp/body.md "${{ github.event.issue.number }}" "${{ github.event.issue.html_url }}"
+      - name: Save to the live feed
+        run: |
+          git config user.name "review-desk-bot"
+          git config user.email "review-desk-bot@users.noreply.github.com"
+          git add site/live.json
+          git commit -m "Live review #${{ github.event.issue.number }}" || echo "nothing to commit"
+          git pull --rebase && git push
+      - name: Reply on the issue (this is the page the owners get)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body-file live/comment.md
+          if [ -f live/urgent.flag ]; then
+            gh label create urgent --color B60205 --description "Paged product + Legal" 2>/dev/null || true
+            gh issue edit ${{ github.event.issue.number }} --add-label urgent
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - uses: actions/deploy-pages@v4

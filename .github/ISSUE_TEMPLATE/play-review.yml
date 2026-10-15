@@ -1,0 +1,37 @@
+name: Simulate a Play review
+description: Send one test review through the live pipeline. The dashboard updates in about a minute.
+title: "Test review"
+labels: ["play-review"]
+body:
+  - type: markdown
+    attributes:
+      value: "This acts like a new Google Play review arriving. It is routed by the same rules the system uses every hour. Try a child-safety report, a legal threat, a gambling ad in a kids' game, a purchase that never arrived, or plain praise."
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options: ["PeleGame", "Smash Runner", "Merge Meadow", "Tile Twist"]
+    validations: { required: true }
+  - type: dropdown
+    id: rating
+    attributes:
+      label: Rating
+      options: ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]
+    validations: { required: true }
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options: ["English (en)", "Hebrew (he)", "German (de)", "Portuguese (pt)"]
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      value: "5.2.0"
+  - type: textarea
+    id: text
+    attributes:
+      label: Review text
+      placeholder: "An adult player keeps sending private messages to my 9 year old..."
+    validations: { required: true }

@@ -1,0 +1,5 @@
+package_name,app_name,genre,genre_family,audience
+com.example.mergemeadow,Merge Meadow,casual_merge,game,general
+com.example.smashrunner,Smash Runner,hypercasual,game,general
+com.example.tiletwist,Tile Twist,casual_puzzle,game,general
+com.example.pelegame,PeleGame,meta_world,meta_world,kids_teens

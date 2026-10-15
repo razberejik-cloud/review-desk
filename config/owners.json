@@ -1,0 +1,23 @@
+{
+ "contacts": {
+  "pm": {
+   "Merge Meadow": "pm.mergemeadow@example.com",
+   "Smash Runner": "pm.smashrunner@example.com",
+   "Tile Twist": "pm.tiletwist@example.com",
+   "PeleGame": "pm.pelegame@example.com"
+  },
+  "legal": "legal-oncall@example.com",
+  "trust_safety": "trust-safety@example.com",
+  "dpo": "privacy@example.com",
+  "ad_ops": "ad-monetization@example.com",
+  "support_lead": "support-lead@example.com",
+  "head_of_product": "head-of-product@example.com"
+ },
+ "github_pm": {
+  "Merge Meadow": "",
+  "Smash Runner": "",
+  "Tile Twist": "",
+  "PeleGame": ""
+ },
+ "_note": "Fake addresses for the demo. github_pm: GitHub usernames to @mention as product manager; empty = the repo owner."
+}

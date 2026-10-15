@@ -1,0 +1,731 @@
+<title>Review Morning Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an operations desk read at 9am. Sticky replay bar on top, the morning's
+   numbers, then issues (summary -> detail), then the people queue; the run log and
+   automatic replies sit in a right rail. */
+:root {
+  --bg: #f4f6f5; --surface: #ffffff; --surface-2: #eaefed; --fg: #121816; --fg-2: #47524e; --fg-3: #6f7a76;
+  --line: #d9e0dd; --accent: #0b6e5a; --accent-soft: #d6ebe5;
+  --crit: #c4262e; --crit-soft: #fbe3e3; --warn: #9a5b00; --warn-soft: #fbedd5; --ok: #1a7f45; --ok-soft: #dcf1e4;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s0: #c3cbc8;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1312; --surface: #151b1a; --surface-2: #1c2422; --fg: #e8eeec; --fg-2: #a9b5b1; --fg-3: #7f8b87;
+  --line: #29332f; --accent: #46c29f; --accent-soft: #163a31;
+  --crit: #f06b6b; --crit-soft: #3d1a1b; --warn: #e5a640; --warn-soft: #3a2a10; --ok: #55c785; --ok-soft: #14301f;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s0: #3a4542; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1312; --surface: #151b1a; --surface-2: #1c2422; --fg: #e8eeec; --fg-2: #a9b5b1; --fg-3: #7f8b87;
+  --line: #29332f; --accent: #46c29f; --accent-soft: #163a31;
+  --crit: #f06b6b; --crit-soft: #3d1a1b; --warn: #e5a640; --warn-soft: #3a2a10; --ok: #55c785; --ok-soft: #14301f;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s0: #3a4542; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 400 14px/1.5 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface) }
+.wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance }
+h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em }
+.eyebrow { font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3) }
+.num { font-variant-numeric: tabular-nums }
+button { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+/* replay bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line) }
+.bar .wrap { display: grid; grid-template-columns: auto 1fr; gap: 10px 24px; align-items: center; padding-block: 12px }
+.brand { display: flex; flex-direction: column; gap: 2px }
+.brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em }
+.replay { display: grid; grid-template-columns: auto auto 1fr; gap: 12px; align-items: center; min-width: 0 }
+.play { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--accent); color: var(--surface); cursor: pointer; display: grid; place-items: center }
+.play svg { width: 14px; height: 14px; fill: currentColor }
+.morning { display: flex; flex-direction: column; min-width: 150px }
+.morning b { font: 700 16px/1.2 var(--display) }
+.track { min-width: 0; display: flex; flex-direction: column; gap: 6px }
+input[type=range] { width: 100%; accent-color: var(--accent) }
+.jumps { display: flex; gap: 6px; flex-wrap: wrap }
+.jump { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; color: var(--fg-2) }
+.jump:hover { border-color: var(--accent); color: var(--fg) }
+.runstate { display: flex; align-items: center; gap: 6px; font: 500 12px var(--mono); color: var(--ok) }
+.runstate i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft) }
+
+main.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; padding-block: 24px 48px }
+.col { display: flex; flex-direction: column; gap: 28px; min-width: 0 }
+section { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap }
+.sec-head p { margin: 0; color: var(--fg-3); font-size: 13px }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.kpi { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px }
+.kpi .v { font: 700 28px/1.1 var(--display); letter-spacing: -0.02em }
+.kpi .s { color: var(--fg-3); font-size: 12.5px }
+
+/* issues */
+.issues { display: flex; flex-direction: column; gap: 8px }
+.issue { display: grid; grid-template-columns: 6px minmax(0, 1fr) 128px; gap: 0 14px; align-items: stretch; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; text-align: left; padding: 0; overflow: hidden }
+.issue:hover { border-color: var(--fg-3) }
+.issue[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) }
+.issue .stripe { background: var(--fg-3) }
+.issue.sev-crit .stripe { background: var(--crit) } .issue.sev-warn .stripe { background: var(--warn) } .issue.sev-low .stripe { background: var(--s0) }
+.issue .body { padding: 12px 0; display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.issue .t { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.issue .t b { font: 700 15px/1.3 var(--display) }
+.issue .t span { color: var(--fg-3); font-size: 13px }
+.issue .d { color: var(--fg-2); font-size: 13px; overflow-wrap: anywhere }
+.chips { display: flex; gap: 6px; flex-wrap: wrap }
+.chip { font: 500 11px/1.6 var(--mono); padding: 0 7px; border-radius: 4px; background: var(--surface-2); color: var(--fg-2); white-space: nowrap }
+.chip.crit { background: var(--crit-soft); color: var(--crit) } .chip.warn { background: var(--warn-soft); color: var(--warn) }
+.chip.ok { background: var(--ok-soft); color: var(--ok) } .chip.new { background: var(--accent); color: var(--surface) }
+.issue .spark { padding: 10px 12px 10px 0; display: flex; align-items: center }
+.issue .spark svg { width: 100%; height: 44px }
+.empty { color: var(--fg-3); padding: 16px; border: 1px dashed var(--line); border-radius: 10px; text-align: center }
+
+/* detail */
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 14px }
+.detail h3 { font-size: 18px }
+.evid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px }
+.evid div { background: var(--surface-2); border-radius: 8px; padding: 10px 12px }
+.evid b { display: block; font: 700 18px/1.2 var(--display) }
+.evid span { font-size: 12px; color: var(--fg-3) }
+.chart { position: relative }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible }
+.chart text { fill: var(--fg-3); font: 400 11px var(--mono) }
+.grid line { stroke: var(--line); stroke-width: 1 }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font: 400 12px/1.45 var(--body); padding: 6px 9px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); z-index: 3 }
+.tip b { font-weight: 600 }
+.themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px }
+.theme { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.theme q { color: var(--fg); font-size: 13px; overflow-wrap: anywhere }
+.theme .kw { font: 400 11.5px var(--mono); color: var(--fg-3); overflow-wrap: anywhere }
+.timeline { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none }
+.timeline li { display: grid; grid-template-columns: 92px 92px minmax(0, 1fr); gap: 10px; font-size: 13px; align-items: baseline }
+.timeline li.future { opacity: .35 }
+
+/* lanes chart + legend */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--fg-2) }
+.legend span { display: inline-flex; align-items: center; gap: 6px }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block }
+
+/* where reviews go */
+.apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+.appcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.appcard header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.appcard header b { font: 700 14px var(--display) }
+.appcard header span { font-size: 12px; color: var(--fg-3) }
+.row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 46px 56px; gap: 8px; align-items: center; font-size: 12.5px }
+.row .lbl { color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.row .barbg { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden }
+.row .barfg { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0 }
+.row.hot .barfg { background: var(--crit) }
+.row .pct { text-align: right; font-family: var(--mono) }
+.row .lift { text-align: right; font: 500 11.5px var(--mono); color: var(--fg-3) }
+.row.hot .lift { color: var(--crit) }
+
+/* queue */
+.qwrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13px }
+th { text-align: left; font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface) }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top }
+tr:last-child td { border-bottom: 0 }
+td.txt { max-width: 360px; overflow-wrap: anywhere }
+.lane { font: 600 11px/1.7 var(--mono); padding: 0 7px; border-radius: 4px; white-space: nowrap }
+.lane.SAFETY { background: var(--crit); color: var(--surface) } .lane.LEGAL { background: var(--crit-soft); color: var(--crit) }
+.lane.HUMAN_VIP { background: var(--warn-soft); color: var(--warn) } .lane.HUMAN_CHECK { background: var(--surface-2); color: var(--fg-2) }
+.stars { color: var(--warn); letter-spacing: 1px; white-space: nowrap }
+.stars s { color: var(--line); text-decoration: none }
+details summary { cursor: pointer; color: var(--accent); font-size: 12.5px; margin-top: 4px }
+details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; color: var(--fg-2) }
+.more { align-self: flex-start; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer }
+
+/* rail */
+.rail { display: flex; flex-direction: column; gap: 28px; min-width: 0 }
+.log { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 0; margin: 0; list-style: none; font-size: 13px }
+.log li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding: 7px 14px }
+.log li + li { border-top: 1px dashed var(--line) }
+.log time { font: 500 12px var(--mono); color: var(--fg-3) }
+.log li.alert { background: var(--crit-soft) }
+.log li.alert div { color: var(--crit) }
+.replies { display: flex; flex-direction: column; gap: 10px }
+.reply { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.reply .rv { font-size: 13px; color: var(--fg-2); overflow-wrap: anywhere }
+.reply .dev { font-size: 13px; border-left: 2px solid var(--accent); padding-left: 10px; overflow-wrap: anywhere }
+.reply .dev.old { border-left-color: var(--line); color: var(--fg-3); text-decoration: line-through }
+.guard { font-size: 12px; color: var(--fg-3) }
+
+.appfilter { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.appfilter .eyebrow { margin-right: 4px }
+.appbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25 }
+.appbtn b { font: 700 13.5px var(--display) }
+.appbtn span { font-size: 11.5px; color: var(--fg-3) }
+.appbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft) }
+.apps.one { grid-template-columns: minmax(0, 1fr) }
+/* urgent */
+.urgentbar { background: var(--crit); color: var(--surface) }
+.urgentbar .wrap { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding-block: 10px; font-size: 13.5px }
+.urgentbar b { font: 800 12px/1 var(--mono); letter-spacing: .1em; padding: 5px 8px; border: 1.5px solid currentColor; border-radius: 4px }
+.urgentbar a { color: inherit; font-weight: 600 }
+.ualerts { display: flex; flex-direction: column; gap: 10px }
+.ualert { background: var(--surface); border: 1px solid var(--crit); border-radius: 10px; overflow: hidden }
+.ualert.old { border-color: var(--line) }
+.ualert > header { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; align-items: center; padding: 10px 14px; background: var(--crit-soft) }
+.ualert.old > header { background: var(--surface-2) }
+.ualert > header .t { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.ualert > header .t b { font: 700 15px var(--display); color: var(--crit) }
+.ualert.old > header .t b { color: var(--fg) }
+.ubody { padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px }
+.ubody h4 { margin: 0 0 6px; font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3) }
+.ubody ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: 13px }
+.ubody q { display: block; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed var(--line); overflow-wrap: anywhere }
+.ubody q:last-of-type { border-bottom: 0 }
+.paged { display: flex; flex-wrap: wrap; gap: 6px }
+.paged span { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; background: var(--surface) }
+.paged span.esc { border-color: var(--crit); color: var(--crit) }
+.ualert pre { margin: 6px 0 0; padding: 10px; background: var(--surface-2); border-radius: 6px; white-space: pre-wrap; font: 400 12px/1.5 var(--mono); overflow-wrap: anywhere }
+/* live intake */
+.livebar { background: var(--fg); color: var(--bg) }
+.livebar .wrap { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding-block: 10px; font-size: 13.5px }
+.livebar b { font: 800 12px/1 var(--mono); letter-spacing: .1em; padding: 5px 8px; background: var(--crit); color: #fff; border-radius: 4px }
+.livebar.flash { animation: flash 1s ease-in-out 3 }
+@keyframes flash { 50% { background: var(--crit) } }
+.live { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px }
+.livehead { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; align-items: center }
+.listen { display: inline-flex; gap: 8px; align-items: center; font: 500 12px var(--mono); color: var(--fg-3) }
+.listen i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px var(--ok-soft) } }
+.submit { background: var(--accent); color: var(--surface); text-decoration: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px }
+.litems { display: flex; flex-direction: column; gap: 8px }
+.litem { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.litem.urg { border-color: var(--crit); background: var(--crit-soft) }
+.litem.new { box-shadow: 0 0 0 2px var(--accent) }
+.litem .rv { font-size: 13.5px; overflow-wrap: anywhere }
+.litem .route { font-size: 13px; color: var(--fg-2) }
+.litem .route b { color: var(--fg) }
+.litem.urg .route b.u { color: var(--crit) }
+@media (prefers-reduced-motion: reduce) { .listen i, .livebar.flash { animation: none } }
+@media (max-width: 1040px) { main.wrap { grid-template-columns: minmax(0, 1fr) } }
+@media (max-width: 720px) {
+  .ubody { grid-template-columns: minmax(0, 1fr) }
+  .bar { position: static }
+  .bar .wrap { grid-template-columns: 1fr }
+  .replay { grid-template-columns: auto 1fr } .track { grid-column: 1 / -1 }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .issue { grid-template-columns: 6px minmax(0, 1fr) } .issue .spark { display: none }
+  .apps { grid-template-columns: minmax(0, 1fr) }
+  .row { grid-template-columns: 104px minmax(0, 1fr) 42px 50px }
+  .timeline li { grid-template-columns: 80px minmax(0, 1fr) } .timeline li .ty { display: none }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="eyebrow">Google Play reviews · 4 apps · 4 languages</span>
+      <h1>Review Morning Desk</h1>
+    </div>
+    <div class="replay">
+      <button class="play" id="play" aria-label="Replay the mornings"><svg viewBox="0 0 10 10" id="playicon"><path d="M2 1l7 4-7 4z"/></svg></button>
+      <div class="morning">
+        <span class="eyebrow">Morning of</span>
+        <b id="dayLabel" class="num">—</b>
+        <span class="runstate" id="runstate"><i></i>Daily run done 06:06</span>
+      </div>
+      <div class="track">
+        <label class="eyebrow" for="day">Replay the 60 days the system ran (drag, or press play)</label>
+        <input type="range" id="day" min="0" max="59" value="59">
+        <div class="jumps" id="jumps"></div>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="livebar" id="livebar" hidden><div class="wrap" id="livebarIn"></div></div>
+<div class="urgentbar" id="urgentbar" hidden><div class="wrap" id="urgentbarIn"></div></div>
+
+<main class="wrap">
+  <nav class="appfilter" id="appfilter" aria-label="Show one app"></nav>
+  <div class="col">
+    <section aria-labelledby="h-live" id="liveSec" hidden>
+      <div class="live">
+        <div class="livehead">
+          <div><span class="eyebrow">Running now on GitHub Actions</span><h2 id="h-live">Live intake</h2></div>
+          <span class="listen" id="listen"><i></i>Listening</span>
+          <a class="submit" id="submitLink" href="#" target="_blank" rel="noopener">Submit a test review</a>
+        </div>
+        <p style="margin:0;color:var(--fg-3);font-size:13px">A review submitted through the GitHub form goes through the same rules, lanes and policy check, and pages the owners if it is urgent. This panel checks for new reviews every 15 seconds.</p>
+        <div class="litems" id="litems"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-u" id="urgentSec">
+      <div class="sec-head"><h2 id="h-u">Urgent escalations</h2><p>Checked every hour with rules only. Pages the app's product manager and Legal; never waits for the morning report.</p></div>
+      <div class="ualerts" id="ualerts"></div>
+    </section>
+
+    <section aria-labelledby="h-y">
+      <div class="sec-head"><h2 id="h-y">Yesterday's reviews</h2><p id="ySub"></p></div>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section aria-labelledby="h-w">
+      <div class="sec-head"><h2 id="h-w">Topics per app</h2><p>Last 7 days, as a share of that app's real reviews. ×N = compared with the 4 weeks before.</p></div>
+      <div class="apps" id="apps"></div>
+    </section>
+
+    <section aria-labelledby="h-i">
+      <div class="sec-head"><h2 id="h-i">Issues to act on</h2><p>One row per problem, all its signals combined. Click a row for the evidence.</p></div>
+      <div class="issues" id="issues"></div>
+    </section>
+
+    <section aria-labelledby="h-d" id="detailSec">
+      <div class="detail" id="detail"></div>
+    </section>
+
+
+    <section aria-labelledby="h-v">
+      <div class="sec-head"><h2 id="h-v">Daily volume and who handled it</h2><div class="legend" id="laneLegend"></div></div>
+      <div class="chart" id="laneChart"></div>
+    </section>
+
+    <section aria-labelledby="h-q">
+      <div class="sec-head"><h2 id="h-q">Personal reply queue</h2><p id="qSub"></p></div>
+      <div class="qwrap"><table>
+        <thead><tr><th>Priority</th><th>Lane</th><th>App</th><th>Rating</th><th>Review</th><th>Why a person</th><th>Answer within</th></tr></thead>
+        <tbody id="queue"></tbody>
+      </table></div>
+      <button class="more" id="moreQ" hidden>Show all</button>
+    </section>
+  </div>
+
+  <aside class="rail">
+    <section aria-labelledby="h-l">
+      <div class="sec-head"><h2 id="h-l">This morning's run</h2><p>All apps</p></div>
+      <ol class="log" id="log"></ol>
+    </section>
+    <section aria-labelledby="h-r">
+      <div class="sec-head"><h2 id="h-r">Automatic replies</h2><p id="rSub"></p></div>
+      <div class="replies" id="replies"></div>
+    </section>
+  </aside>
+</main>
+
+<script>
+const D = /*__DATA__*/null;
+
+const CAT = { crash_stability: "Crashes", performance_battery: "Performance & battery", progress_account_loss: "Lost progress",
+  payment_purchase: "Purchases not received", ads: "Ads", pricing_monetization: "Prices", difficulty_balance: "Difficulty",
+  content_repetitive: "Repetitive content", feature_request: "Feature requests", praise: "Praise", chat_safety: "Chat safety",
+  multiplayer_servers: "Servers & multiplayer", child_safety: "Child safety reports", other: "Other" };
+const SIG = { SAFETY: "Safety report", RELEASE: "Jumped in a new version", SPIKE: "Spike vs normal", NEW_THEME: "New theme appeared",
+  EMERGING: "Growing week by week", CHRONIC: "Always high" };
+const LANES = [["auto", "Automatic reply", "var(--s1)"], ["inc", "Known-incident reply", "var(--s2)"],
+  ["ppl", "Personal reply (by a person)", "var(--s3)"], ["none", "No reply (noise)", "var(--s0)"]];
+const LANE_OF = { AUTO: "auto", INCIDENT: "inc", SAFETY: "ppl", LEGAL: "ppl", HUMAN_VIP: "ppl", HUMAN_CHECK: "ppl", NO_REPLY: "none" };
+const LANE_NAME = { SAFETY: "Safety", LEGAL: "Legal", HUMAN_VIP: "Player support", HUMAN_CHECK: "Check" };
+const SEV = { child_safety: "crit", crash_stability: "crit", payment_purchase: "crit", progress_account_loss: "crit" };
+
+// mornings: the run on day d uses reviews up to d-1
+const DAYS = D.days;
+const MORNINGS = DAYS.map(d => addDays(d, 1));
+function addDays(s, n) { const t = new Date(s + "T00:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }
+const fmt = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const fmtLong = s => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const n = x => x.toLocaleString("en-US");
+const pct = (x, d = 0) => (x * 100).toFixed(d) + "%";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const $ = id => document.getElementById(id);
+
+let FILTER = null;          // null = all apps
+const GENRE = { "Merge Meadow": "Casual · merge", "Smash Runner": "Hypercasual · runner", "Tile Twist": "Casual · puzzle", "PeleGame": "Virtual world" };
+const inFilter = app => !FILTER || app === FILTER;
+function dayStats(day, app) {
+  const a = app === undefined ? FILTER : app;          // null = every app
+  const keys = a ? [day + "|" + a] : D.apps.map(x => day + "|" + x);
+  const out = { t: 0, lanes: {}, c: {} };
+  for (const k of keys) { const v = D.daily[k]; if (!v) continue; out.t += v.t;
+    for (const [l, c] of Object.entries(v.l)) out.lanes[l] = (out.lanes[l] || 0) + c;
+    for (const [l, c] of Object.entries(v.c)) out.c[l] = (out.c[l] || 0) + c; }
+  return out;
+}
+const realTotal = s => Object.values(s.c).reduce((a, b) => a + b, 0);
+
+let idx = 59, selected = null, showAllQ = false;
+
+function render() {
+  const morning = MORNINGS[idx], yday = DAYS[idx];
+  $("dayLabel").textContent = fmtLong(morning);
+  $("day").value = idx;
+  renderUrgent(morning);
+  renderKpis(morning, yday); renderIssues(morning); renderDetail(morning); renderApps(yday);
+  renderLanes(yday); renderQueue(yday); renderLog(morning, yday); renderReplies(yday);
+}
+
+const ROLE = { pm: "Product manager", legal: "Legal on-call", trust_safety: "Trust & Safety", dpo: "Privacy officer",
+  ad_ops: "Ad monetization", support_lead: "Support lead", head_of_product: "Head of Product" };
+const hm = iso => iso.slice(11, 16);
+const dayOf = iso => iso.slice(0, 10);
+
+function renderUrgent(morning) {
+  const cut = morning + "T06:00", weekAgo = addDays(morning, -7) + "T06:00", dayAgo = addDays(morning, -1) + "T06:00";
+  const list = D.urgent.filter(u => u.detected <= cut && u.detected > weekAgo && inFilter(u.app)).sort((a, b) => b.detected.localeCompare(a.detected));
+  const fresh = list.filter(u => u.detected > dayAgo);
+  $("urgentbar").hidden = !fresh.length;
+  if (fresh.length) $("urgentbarIn").innerHTML = `<b>URGENT</b><span>${fresh.map(u => `${esc(u.label)} · ${esc(u.app)} · paged ${u.mins} min after the review`).join(" &nbsp;|&nbsp; ")}</span><a href="#urgentSec">See details</a>`;
+  $("urgentSec").hidden = !list.length;
+  $("ualerts").innerHTML = list.map(u => {
+    const isNew = u.detected > dayAgo, seen = u.reviews.filter(r => r.ts.slice(0, 16) <= cut);
+    const pagedList = u.paged.filter(([role]) => role !== "head_of_product" || (u.escalated && u.escalated <= cut));
+    return `<article class="ualert ${isNew ? "" : "old"}">
+      <header><span class="t"><b>${esc(u.label)}</b><span>${esc(u.app)}</span>${isNew ? '<span class="chip new">LAST 24 H</span>' : ""}</span>
+        <span class="chips"><span class="chip">${seen.length} report${seen.length > 1 ? "s" : ""}</span>
+        <span class="chip ${isNew ? "crit" : ""}">paged ${fmt(dayOf(u.detected))} ${hm(u.detected)} UTC · ${u.mins} min after the review</span>
+        <span class="chip">answer within ${u.sla} h</span><span class="chip ok">auto-reply blocked</span></span></header>
+      ${isNew ? "" : '<details><summary style="padding:8px 14px">Show details</summary>'}<div class="ubody">
+        <div><h4>What players reported</h4>${seen.slice(-3).reverse().map(r => `<q dir="auto">${esc(r.text)}</q><span class="eyebrow">${fmt(dayOf(r.ts))} ${hm(r.ts)} · ${r.stars}★ · ${esc(r.lang)} · v${esc(r.version)}</span>`).join("")}
+          ${seen.length > 3 ? `<span class="eyebrow">+ ${seen.length - 3} more</span>` : ""}</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div><h4>Who was paged</h4><div class="paged">${pagedList.map(([role, addr]) => `<span class="${role === "head_of_product" ? "esc" : ""}" title="${esc(addr)}">${ROLE[role]}${role === "pm" ? " · " + esc(u.app) : ""}${role === "head_of_product" ? " (3+ reports in 24 h)" : ""}</span>`).join("")}</div></div>
+          <div><h4>At risk</h4><span style="font-size:13px">${esc(u.policy)}</span></div>
+          <div><h4>Next steps</h4><ul>${u.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>
+          <details><summary>Message that was sent</summary><pre>${esc(u.message)}</pre></details>
+        </div>
+      </div>${isNew ? "" : "</details>"}</article>`;
+  }).join("");
+}
+
+function renderKpis(morning, yday) {
+  const s = dayStats(yday), run = D.runs[morning] || D.runs[yday] || {};
+  const L = s.lanes, ppl = (L.SAFETY || 0) + (L.LEGAL || 0) + (L.HUMAN_VIP || 0) + (L.HUMAN_CHECK || 0);
+  const auto = (L.AUTO || 0) + (L.INCIDENT || 0) + (L.NO_REPLY || 0);
+  const open = D.issues.filter(i => i.first <= morning && inFilter(i.app)), fresh = open.filter(i => i.signals.some(x => x.day === morning));
+  $("ySub").textContent = fmtLong(yday) + " · collected at 06:00";
+  $("kpis").innerHTML = `
+    <div class="kpi"><span class="eyebrow">New reviews</span><span class="v num">${n(s.t)}</span>
+      <span class="s">${FILTER ? (GENRE[FILTER] || "") : run.fetched ? `${n(run.fetched)} pulled from the API, ${n(run.repeats)} repeats skipped` : "first run"}</span></div>
+    <div class="kpi"><span class="eyebrow">Handled automatically</span><span class="v num">${pct(auto / Math.max(s.t, 1))}</span>
+      <span class="s">${n((L.AUTO || 0) + (L.INCIDENT || 0))} replied · ${n(L.NO_REPLY || 0)} noise</span></div>
+    <div class="kpi"><span class="eyebrow">Need a personal reply</span><span class="v num">${n(ppl)}</span>
+      <span class="s">${L.SAFETY ? `<b style="color:var(--crit)">${L.SAFETY} safety</b> · ` : ""}${L.HUMAN_VIP || 0} player support · ${L.HUMAN_CHECK || 0} to check</span></div>
+    <div class="kpi"><span class="eyebrow">Open issues</span><span class="v num">${open.length}</span>
+      <span class="s">${fresh.length ? `<b style="color:var(--accent)">${fresh.length} new signal${fresh.length > 1 ? "s" : ""} this morning</b>` : "nothing new this morning"}</span></div>`;
+}
+
+function fixedChip(i, morning) {
+  for (const [d, list] of Object.entries(D.events)) for (const e of list) {
+    const m = e.match(/^(.+?) v([\d.]+) fixed the v([\d.]+) incident/);
+    if (m && m[1] === i.app && i.category === "crash_stability" && d <= morning) return `<span class="chip ok">fix shipped in v${m[2]} · ${fmt(d)}</span>`;
+  }
+  return "";
+}
+
+function issueLine(i, morning) {
+  const sig = i.signals.filter(s => s.day <= morning);
+  const lead = sig.slice().sort((a, b) => ({ SAFETY: 0, RELEASE: 1, SPIKE: 2, NEW_THEME: 3, EMERGING: 4, CHRONIC: 5 })[a.type] - ({ SAFETY: 0, RELEASE: 1, SPIKE: 2, NEW_THEME: 3, EMERGING: 4, CHRONIC: 5 })[b.type])[0];
+  const e = lead.ev;
+  let d = "";
+  if (lead.type === "SAFETY") d = `${D.queue.filter(q => q.app === i.app && q.lane === "SAFETY" && q.day < morning).length} parent reports so far. Trust & Safety and Legal were paged.`;
+  else if (lead.type === "RELEASE") d = `v${e.version}: ${pct(e.share_new)} of reviews vs ${pct(e.share_previous)} in v${e.previous}` + (e.concentrated_on?.length ? ` · concentrated on ${e.concentrated_on.map(x => x.split(" (")[0]).join(", ")}` : "");
+  else if (lead.type === "SPIKE") d = `${pct(e.share_now)} of the last 7 days vs a normal ${pct(e.share_normal)}`;
+  else if (lead.type === "EMERGING") d = `Weekly share grew from ${pct(e.share_first_weeks)} to ${pct(e.share_last_weeks)}`;
+  else if (lead.type === "CHRONIC") d = `About ${pct(e.avg_share)} of reviews every week. A roadmap topic, not an incident.`;
+  else if (lead.type === "NEW_THEME") d = `“${e.quote}”`;
+  return { sig, lead, d };
+}
+
+function renderIssues(morning) {
+  const open = D.issues.filter(i => i.first <= morning && inFilter(i.app)).sort((a, b) => b.priority - a.priority || a.first.localeCompare(b.first));
+  if (!open.length) { $("issues").innerHTML = `<div class="empty">${FILTER ? "No open issues for " + esc(FILTER) + " this morning." : "No issues yet. The system is learning what normal looks like for each app."}</div>`; selected = null; return; }
+  if (!selected || !open.includes(selected)) selected = open[0];
+  $("issues").innerHTML = "";
+  for (const i of open) {
+    const { sig, lead, d } = issueLine(i, morning);
+    const sev = SEV[i.category] || (lead.type === "CHRONIC" ? "low" : "warn");
+    const types = [...new Set(sig.map(s => s.type))];
+    const isNew = sig.some(s => s.day === morning);
+    const b = document.createElement("button");
+    b.className = `issue sev-${sev}`; b.setAttribute("aria-pressed", i === selected);
+    b.innerHTML = `<span class="stripe"></span><span class="body">
+      <span class="t"><b>${esc(CAT[i.category] || i.category)}</b><span>${esc(i.app)}</span>${isNew ? '<span class="chip new">NEW TODAY</span>' : ""}</span>
+      <span class="d">${esc(d)}</span>
+      <span class="chips">${types.map(t => `<span class="chip ${t === "SAFETY" || t === "RELEASE" ? "crit" : t === "CHRONIC" ? "" : "warn"}">${SIG[t]}</span>`).join("")}
+        <span class="chip">since ${fmt(i.first)}</span>${fixedChip(i, morning)}</span></span>
+      <span class="spark">${spark(i, morning)}</span>`;
+    b.onclick = () => { selected = i; renderIssues(morning); renderDetail(morning); };
+    $("issues").appendChild(b);
+  }
+}
+
+function seriesFor(i, endDay) {
+  // trailing 3-day share of this category in this app (no peeking at the future)
+  const out = [];
+  for (let k = 0; k < DAYS.length; k++) {
+    if (DAYS[k] > endDay) break;
+    let num = 0, den = 0;
+    for (let j = Math.max(0, k - 2); j <= k; j++) { const s = dayStats(DAYS[j], i.app); num += i.category === "child_safety" ? (s.lanes.SAFETY || 0) : (s.c[i.category] || 0); den += realTotal(s); }
+    out.push(den ? num / den : 0);
+  }
+  return out;
+}
+
+function spark(i, morning) {
+  const v = seriesFor(i, addDays(morning, -1)), W = 120, H = 44, max = Math.max(0.02, ...seriesFor(i, DAYS[59]));
+  const x = k => k / 59 * W, y = val => H - 3 - val / max * (H - 8);
+  const pts = v.map((val, k) => `${x(k).toFixed(1)},${y(val).toFixed(1)}`).join(" ");
+  const last = v.length - 1;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" x2="${W}" y1="${H - 3}" y2="${H - 3}" stroke="var(--line)"/>
+    <polyline points="${pts}" fill="none" stroke="var(--fg-2)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+    ${last >= 0 ? `<circle cx="${x(last)}" cy="${y(v[last])}" r="2.5" fill="var(--accent)"/>` : ""}</svg>`;
+}
+
+function renderDetail(morning) {
+  const el = $("detail");
+  if (!selected) { $("detailSec").hidden = true; return; }
+  $("detailSec").hidden = false;
+  const i = selected, { sig, lead } = issueLine(i, morning), e = lead.ev;
+  const ev = [];
+  if (lead.type === "RELEASE") ev.push([pct(e.share_new), `of v${e.version} reviews (v${e.previous}: ${pct(e.share_previous)})`], [`×${e.lift}`, "compared with the previous version"], [n(e.count), "reviews about it"]);
+  if (lead.type === "SPIKE") ev.push([pct(e.share_now), "share in the last 7 days"], [pct(e.share_normal), "normal share for this app"], [`×${e.lift}`, `lift · ${n(e.count_7d)} reviews`]);
+  if (lead.type === "SAFETY") { const q = D.queue.filter(x => x.app === i.app && x.lane === "SAFETY" && x.day < morning);
+    ev.push([q.length, "parent reports so far"], ["2 h", "reply time target"], ["Legal + T&S", "paged on every report"]); }
+  if (lead.type === "CHRONIC") ev.push([pct(e.avg_share), "of reviews, every week"], [e.weekly_share.map(x => pct(x)).join(" · "), "weekly share"]);
+  if (lead.type === "EMERGING") ev.push([pct(e.share_first_weeks) + " → " + pct(e.share_last_weeks), "weekly share"]);
+  const devices = lead.type === "RELEASE" && e.concentrated_on?.length ? `<div><span class="eyebrow">Concentrated on</span><div class="chips" style="margin-top:6px">${e.concentrated_on.map(x => `<span class="chip">${esc(x)}</span>`).join("")}</div></div>` : "";
+  const th = i.themes.filter(t => t.born_on < morning);
+  const samples = i.category === "child_safety" ? D.queue.filter(x => x.app === i.app && x.lane === "SAFETY" && x.day < morning).slice(-3) : [];
+  el.innerHTML = `
+    <div class="sec-head"><div><span class="eyebrow">${esc(i.app)} · selected issue</span><h3 id="h-d">${esc(CAT[i.category] || i.category)}</h3></div>
+      <div class="chips">${[...new Map(sig.map(s => [s.type, s])).values()].map(s => `<span class="chip">${SIG[s.type]} · first ${fmt(s.day)}</span>`).join("")}${fixedChip(i, morning)}</div></div>
+    ${ev.length ? `<div class="evid">${ev.map(([b, s]) => `<div><b class="num">${esc(b)}</b><span>${esc(s)}</span></div>`).join("")}</div>` : ""}
+    ${devices}
+    <div><span class="eyebrow">Share of ${esc(i.app)} reviews, 3-day average</span><div class="chart" id="issueChart"></div></div>
+    ${th.length ? `<div><span class="eyebrow">Themes the system discovered inside it (all languages grouped)</span>
+      <div class="themes" style="margin-top:8px">${th.map(t => `<div class="theme"><div class="chips"><span class="chip">${t.id}</span><span class="chip">${n(t.size)} reviews</span><span class="chip">born ${fmt(t.born_on)}</span></div>
+      <q dir="auto">${esc(t.quote)}</q><span class="kw" dir="auto">${esc(t.keywords)}</span>
+      <span class="kw">${Object.entries(t.langs).map(([l, c]) => `${l} ${c}`).join(" · ")}</span></div>`).join("")}</div></div>` : ""}
+    ${samples.length ? `<div><span class="eyebrow">Latest reports (routed to people, never auto-answered)</span><div class="themes" style="margin-top:8px">${samples.map(s => `<div class="theme"><q dir="auto">${esc(s.text)}</q><span class="kw">${fmt(s.day)} · ${s.lang}</span></div>`).join("")}</div></div>` : ""}`;
+  issueChart(i, morning);
+}
+
+function tipper(wrap) { let t = wrap.querySelector(".tip"); if (!t) { t = document.createElement("div"); t.className = "tip"; t.hidden = true; wrap.appendChild(t) } return t }
+
+function issueChart(i, morning) {
+  const wrap = $("issueChart"), endDay = addDays(morning, -1), v = seriesFor(i, endDay), full = seriesFor(i, DAYS[59]);
+  const W = 720, H = 220, L = 40, R = 12, T = 18, B = 26, iw = W - L - R, ih = H - T - B;
+  const max = Math.max(0.04, ...full) * 1.1, step = max > 0.3 ? 0.1 : max > 0.12 ? 0.05 : max > 0.05 ? 0.02 : 0.01;
+  const x = k => L + k / 59 * iw, y = val => T + ih - val / max * ih;
+  let g = `<g class="grid">`;
+  for (let t = 0; t <= max + 1e-9; t += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${Math.round(t * 100)}%</text>`;
+  g += `</g>`;
+  [0, 15, 30, 45, 59].forEach(k => g += `<text x="${x(k)}" y="${H - 6}" text-anchor="middle">${fmt(DAYS[k])}</text>`);
+  // version releases
+  for (const [ver, day] of Object.entries(D.releases[i.app] || {})) { const k = DAYS.indexOf(day); if (k <= 0) continue;
+    g += `<line x1="${x(k)}" x2="${x(k)}" y1="${T}" y2="${T + ih}" stroke="var(--fg-3)" stroke-dasharray="3 3" opacity="${day <= endDay ? 1 : .3}"/><text x="${x(k) + 4}" y="${T + 8}" opacity="${day <= endDay ? 1 : .3}">v${ver}</text>`; }
+  // first alert
+  const ka = DAYS.indexOf(addDays(i.first, -1));
+  const area = v.length ? `M${x(0)},${y(0)} ` + v.map((val, k) => `L${x(k)},${y(val)}`).join(" ") + ` L${x(v.length - 1)},${y(0)} Z` : "";
+  const line = v.map((val, k) => `${k ? "L" : "M"}${x(k)},${y(val)}`).join(" ");
+  const ghost = full.map((val, k) => `${k ? "L" : "M"}${x(k)},${y(val)}`).join(" ");
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily share of ${esc(CAT[i.category])} in ${esc(i.app)}">${g}
+    <path d="${ghost}" fill="none" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="2 3"/>
+    <path d="${area}" fill="var(--s1)" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>
+    ${ka >= 0 && i.first <= morning ? `<line x1="${x(ka)}" x2="${x(ka)}" y1="${T}" y2="${T + ih}" stroke="var(--crit)" stroke-width="1.5"/><circle cx="${x(ka)}" cy="${y(v[ka] ?? 0)}" r="5" fill="var(--crit)" stroke="var(--surface)" stroke-width="2"/><text x="${x(ka) - 4}" y="${T + ih - 6}" text-anchor="end" style="fill:var(--crit)">alert ${fmt(i.first)}</text>` : ""}
+    ${v.length ? `<circle cx="${x(v.length - 1)}" cy="${y(v[v.length - 1])}" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>` : ""}
+    <line id="xh" y1="${T}" y2="${T + ih}" stroke="var(--fg-3)" opacity="0"/>
+    <rect x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent" id="hit"/></svg>`;
+  const tip = tipper(wrap), svg = wrap.querySelector("svg");
+  svg.querySelector("#hit").addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * W, k = Math.round((px - L) / iw * 59);
+    if (k < 0 || k >= v.length) { tip.hidden = true; svg.querySelector("#xh").setAttribute("opacity", 0); return; }
+    svg.querySelector("#xh").setAttribute("x1", x(k)); svg.querySelector("#xh").setAttribute("x2", x(k)); svg.querySelector("#xh").setAttribute("opacity", .6);
+    const s = dayStats(DAYS[k], i.app);
+    tip.innerHTML = `<b>${fmt(DAYS[k])}</b> · ${pct(v[k], 1)} (3-day)<br>${i.category === "child_safety" ? (s.lanes.SAFETY || 0) : (s.c[i.category] || 0)} of ${realTotal(s)} reviews that day`;
+    tip.style.left = (x(k) / W * r.width) + "px"; tip.style.top = (y(v[k]) / H * r.height) + "px"; tip.hidden = false;
+  });
+  svg.querySelector("#hit").addEventListener("pointerleave", () => { tip.hidden = true; svg.querySelector("#xh").setAttribute("opacity", 0) });
+}
+
+function renderApps(yday) {
+  const k = DAYS.indexOf(yday), skip = new Set(["praise", "other"]);
+  $("apps").classList.toggle("one", !!FILTER);
+  $("apps").innerHTML = D.apps.filter(inFilter).map(app => {
+    const now = {}, base = {}; let nn = 0, nb = 0;
+    for (let j = Math.max(0, k - 6); j <= k; j++) { const s = dayStats(DAYS[j], app); nn += realTotal(s); for (const [c, v] of Object.entries(s.c)) now[c] = (now[c] || 0) + v; }
+    for (let j = Math.max(0, k - 34); j < k - 6; j++) { const s = dayStats(DAYS[j], app); nb += realTotal(s); for (const [c, v] of Object.entries(s.c)) base[c] = (base[c] || 0) + v; }
+    const rows = Object.entries(now).filter(([c]) => !skip.has(c)).map(([c, v]) => {
+      const share = v / nn, b = nb ? (base[c] || 0) / nb : null, lift = b !== null && nb > 100 ? (share + .005) / (b + .005) : null;
+      return { c, v, share, lift };
+    }).sort((a, b) => b.share - a.share).slice(0, 5);
+    const max = Math.max(.2, ...rows.map(r => r.share));
+    return `<div class="appcard"><header><b>${esc(app)}</b><span>${n(nn)} real reviews in 7 days</span></header>
+      ${rows.map(r => { const hot = r.lift && r.lift >= 2 && r.v >= 15;
+        return `<div class="row ${hot ? "hot" : ""}" title="${n(r.v)} reviews"><span class="lbl">${esc(CAT[r.c] || r.c)}</span>
+          <span class="barbg"><span class="barfg" style="display:block;width:${(r.share / max * 100).toFixed(1)}%"></span></span>
+          <span class="pct num">${pct(r.share)}</span><span class="lift">${r.lift ? "×" + r.lift.toFixed(1) : "new"}</span></div>` }).join("")}</div>`;
+  }).join("");
+}
+
+function renderLanes(yday) {
+  const wrap = $("laneChart"), k0 = DAYS.indexOf(yday);
+  $("laneLegend").innerHTML = LANES.map(([, l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join("");
+  const W = 720, H = 200, L = 40, R = 8, T = 10, B = 24, iw = W - L - R, ih = H - T - B;
+  const data = DAYS.map(d => { const s = dayStats(d), o = { auto: 0, inc: 0, ppl: 0, none: 0 }; for (const [l, c] of Object.entries(s.lanes)) o[LANE_OF[l]] += c; return o });
+  const peak = Math.max(...data.map(o => o.auto + o.inc + o.ppl + o.none)), stepV = peak > 300 ? 100 : peak > 120 ? 50 : 20;
+  const max = Math.ceil(peak / stepV) * stepV;
+  const bw = iw / 60, x = k => L + k * bw, y = v => T + ih - v / max * ih;
+  let g = `<g class="grid">`;
+  for (let t = 0; t <= max; t += stepV) g += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`;
+  g += `</g>`;
+  [0, 15, 30, 45, 59].forEach(k => g += `<text x="${x(k) + bw / 2}" y="${H - 6}" text-anchor="middle">${fmt(DAYS[k])}</text>`);
+  let bars = "";
+  data.forEach((o, k) => { if (k > k0) return; let acc = 0;
+    LANES.forEach(([key, , c], li) => { const v = o[key]; if (!v) return; const y1 = y(acc + v), h = y(acc) - y1 - (acc ? 1 : 0);
+      bars += `<rect x="${x(k) + 1}" y="${y1}" width="${Math.max(1, bw - 2)}" height="${Math.max(0, h)}" fill="${c}" ${li === 3 || acc + v === o.auto + o.inc + o.ppl + o.none ? 'rx="1.5"' : ""}/>`; acc += v; }); });
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily reviews by how they were handled">${g}${bars}
+    <rect x="${x(k0)}" y="${T}" width="${bw}" height="${ih}" fill="none" stroke="var(--fg)" stroke-width="1" opacity=".5"/>
+    <rect id="lhit" x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent"/></svg>`;
+  const tip = tipper(wrap), svg = wrap.querySelector("svg");
+  svg.querySelector("#lhit").addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * W, k = Math.floor((px - L) / bw);
+    if (k < 0 || k > k0) { tip.hidden = true; return; }
+    const o = data[k], tot = o.auto + o.inc + o.ppl + o.none;
+    tip.innerHTML = `<b>${fmt(DAYS[k])}</b> · ${n(tot)} reviews<br>` + LANES.map(([key, l]) => `${l}: ${n(o[key])}`).join("<br>");
+    tip.style.left = ((x(k) + bw / 2) / W * r.width) + "px"; tip.style.top = (y(tot) / H * r.height) + "px"; tip.hidden = false;
+  });
+  svg.querySelector("#lhit").addEventListener("pointerleave", () => tip.hidden = true);
+}
+
+function stars(s) { return `<span class="stars" aria-label="${s} stars">${"★".repeat(s)}<s>${"★".repeat(5 - s)}</s></span>` }
+
+function renderQueue(yday) {
+  const q = D.queue.filter(x => x.day === yday && inFilter(x.app)).sort((a, b) => b.p - a.p);
+  const sla = { SAFETY: 0, LEGAL: 0, HUMAN_VIP: 0, HUMAN_CHECK: 0 }; q.forEach(x => sla[x.lane]++);
+  $("qSub").textContent = q.length ? `${q.length} reviews from yesterday, highest priority first` : "No review from yesterday needs a personal reply.";
+  const rows = showAllQ ? q : q.slice(0, 8);
+  $("queue").innerHTML = rows.map(x => `<tr>
+    <td class="num">${x.p}</td><td><span class="lane ${x.lane}">${LANE_NAME[x.lane]}</span></td>
+    <td>${esc(x.app)}<br><span class="eyebrow">v${esc(x.version)} · ${esc(x.lang)}</span></td>
+    <td>${stars(x.stars)}${x.first && x.first !== x.stars ? `<br><span class="eyebrow">was ${x.first}★</span>` : ""}</td>
+    <td class="txt"><span dir="auto">${esc(x.text)}</span><details><summary>Suggested reply</summary><p>${esc(x.draft)}</p></details></td>
+    <td>${esc(x.reason)}<br><span class="eyebrow">${esc(x.team)}</span></td>
+    <td class="num">${x.sla} h</td></tr>`).join("") || `<tr><td colspan="7" class="empty">Queue is empty.</td></tr>`;
+  $("moreQ").hidden = q.length <= 8;
+  $("moreQ").textContent = showAllQ ? "Show fewer" : `Show all ${q.length}`;
+}
+
+function renderLog(morning, yday) {
+  const s = dayStats(yday, null), run = D.runs[morning] || {}, L = s.lanes;
+  const noise = L.NO_REPLY || 0, sigs = D.issues.flatMap(i => i.signals.filter(x => x.day === morning).map(x => ({ ...x, i })));
+  const born = D.issues.flatMap(i => i.themes.filter(t => t.born_on === yday));
+  const safety = L.SAFETY || 0, auto = (L.AUTO || 0) + (L.INCIDENT || 0);
+  const ev = (D.events[morning] || []).concat(D.events[yday] || []);
+  const from = addDays(morning, -1) + "T06:00", to = morning + "T06:00";
+  const urgentLog = [
+    ...D.urgent.filter(u => u.detected > from && u.detected <= to).map(u => [u.detected, `<b>Urgent page</b> (hourly check): ${esc(u.label)} in ${esc(u.app)} to ${u.paged.filter(p => p[0] !== "head_of_product").map(p => ROLE[p[0]]).join(", ")}`]),
+    ...D.urgent.filter(u => u.escalated && u.escalated > from && u.escalated <= to).map(u => [u.escalated, `<b>Escalated</b> to Head of Product: ${esc(u.label)} in ${esc(u.app)} reached 3 reports in 24 h`]),
+  ].sort((a, b) => a[0].localeCompare(b[0])).map(([t, h]) => [`${dayOf(t) < morning ? "yday " : ""}${hm(t)}`, h, true]);
+  const items = [
+    ...urgentLog,
+    ["06:00", `Pulled reviews for ${D.apps.length} apps from Google Play: ${n(run.fetched || 0)} returned, <b>${n(run.new || 0)} new</b>, ${run.edited || 0} edited, ${n(run.repeats || 0)} repeats skipped`],
+    ["06:01", `Filtered ${n(noise)} as noise (too short, emoji, spam, off-topic). Counted, not grouped.`],
+    ["06:02", `Sorted ${n(realTotal(s))} real reviews into topics, in ${D.totals.languages} languages, with no translation step`],
+    ["06:03", born.length ? `<b>${born.length} new theme${born.length > 1 ? "s" : ""}</b> formed from reviews that matched nothing known` : "Matched new reviews to existing themes. No new themes."],
+    ...sigs.map(x => ["06:04", `<b>Alert:</b> ${SIG[x.type]} · ${esc(CAT[x.i.category] || x.i.category)} in ${esc(x.i.app)}`, true]),
+    ...(safety ? [["06:04", `<b>Paged Trust & Safety and Legal</b> for ${safety} child-safety report${safety > 1 ? "s" : ""}`, true]] : []),
+    ...ev.map(e => ["06:05", esc(e)]),
+    ["06:05", `Posted ${n(auto)} automatic replies. All passed the policy check.`],
+    ["06:06", `Queued ${n((L.SAFETY || 0) + (L.LEGAL || 0) + (L.HUMAN_VIP || 0) + (L.HUMAN_CHECK || 0))} reviews for a personal reply, each with a draft. Dashboard refreshed.`],
+  ];
+  $("log").innerHTML = items.map(([t, h, a]) => `<li class="${a ? "alert" : ""}"><time>${t}</time><div>${h}</div></li>`).join("");
+}
+
+function renderReplies(yday) {
+  const list = D.samples.filter(s => s.day === yday && inFilter(s.app)).slice(0, 5);
+  $("rSub").textContent = "Examples posted this morning";
+  const morning = addDays(yday, 1);
+  $("replies").innerHTML = list.map(s => {
+    const edited = s.edited_on && s.edited_on <= morning, before = s.reply_before;
+    return `<div class="reply"><div class="chips"><span class="chip">${esc(s.app)}</span><span class="chip">${esc(CAT[s.cat] || s.cat)}</span><span class="chip">${esc(s.lang)}</span>${s.lane === "INCIDENT" ? '<span class="chip warn">known incident</span>' : ""}</div>
+      <div class="rv">${stars(s.stars)} <span dir="auto">${esc(s.text)}</span></div>
+      ${before && edited ? `<div class="dev old" dir="auto">${esc(before)}</div>` : ""}
+      <div class="dev" dir="auto">${esc(before && !edited ? before : s.reply)}</div>
+      <div class="guard"><span class="chip ok">policy check 9/9</span> ${before && edited ? `edited ${fmt(s.edited_on)} when the fix shipped` : ""}</div></div>`;
+  }).join("") || `<div class="empty">${FILTER ? "No sampled replies for " + esc(FILTER) + " this morning. Pick another day or All apps." : "No automatic replies this morning."}</div>`;
+}
+
+function renderFilter() {
+  $("appfilter").innerHTML = `<span class="eyebrow">Show</span>` + [[null, "All apps", `${D.apps.length} apps`], ...D.apps.map(a => [a, a, GENRE[a] || ""])]
+    .map(([a, l, g]) => `<button class="appbtn" data-app="${a ?? ""}" aria-pressed="${FILTER === a}"><b>${esc(l)}</b><span>${esc(g)}</span></button>`).join("");
+}
+$("appfilter").onclick = e => { const b = e.target.closest(".appbtn"); if (!b) return; FILTER = b.dataset.app || null; showAllQ = false; selected = null; renderFilter(); render(); };
+renderFilter();
+
+// ---------- live intake (works when the page is served next to live.json, e.g. GitHub Pages) ----------
+const LANE_LABEL = { SAFETY: "Safety · personal reply", LEGAL: "Legal & store risk · personal reply", HUMAN_VIP: "Player support · personal reply",
+  HUMAN_CHECK: "Check · personal reply", AUTO: "Automatic reply", INCIDENT: "Known-incident reply", NO_REPLY: "No reply (noise)" };
+let liveSeen = null;
+const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago" };
+function issueFormUrl() {
+  const h = location.hostname, path = location.pathname.split("/").filter(Boolean);
+  if (!h.endsWith("github.io") || !path.length) return null;
+  return `https://github.com/${h.split(".")[0]}/${path[0]}/issues/new?template=play-review.yml`;
+}
+async function pollLive() {
+  let list;
+  try { const r = await fetch("live.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; list = await r.json(); }
+  catch (e) { return; }
+  $("liveSec").hidden = false;
+  const form = issueFormUrl(); if (form) $("submitLink").href = form; else $("submitLink").hidden = true;
+  $("listen").innerHTML = `<i></i>Listening · checked ${new Date().toLocaleTimeString("en-GB")}`;
+  const fresh = liveSeen ? list.filter(x => !liveSeen.has(x.id)) : [];
+  liveSeen = new Set(list.map(x => x.id));
+  const items = list.slice().reverse().slice(0, 6);
+  $("litems").innerHTML = items.length ? items.map(x => {
+    const u = x.urgent, isNew = fresh.some(f => f.id === x.id);
+    return `<div class="litem ${u ? "urg" : ""} ${isNew ? "new" : ""}">
+      <div class="chips"><span class="chip">${esc(x.app)}</span>${stars(x.stars)}<span class="chip">${esc(x.lang)}</span><span class="chip">v${esc(x.version)}</span>
+        <span class="chip">${ago(x.received_at)}</span>${x.issue_url ? `<a class="chip" href="${esc(x.issue_url)}" target="_blank" rel="noopener">issue #${x.issue}</a>` : ""}</div>
+      <div class="rv" dir="auto">${esc(x.text)}</div>
+      <div class="route"><b class="${u ? "u" : ""}">${esc(LANE_LABEL[x.lane] || x.lane)}</b> · ${esc(x.reason)}${x.flags?.length ? ` · rules: ${esc(x.flags.join(", "))}` : ""}</div>
+      ${u ? `<div class="route"><b class="u">URGENT · ${esc(u.label)}</b> · paged ${u.paged.map(p => ROLE[p[0]] + (p[0] === "pm" ? " · " + esc(x.app) : "")).join(", ")} · respond by ${hm(u.due)} UTC (${u.sla} h)</div>` : ""}
+      ${x.reply_status ? `<div class="reply"><div class="dev" dir="auto">${esc(x.draft)}</div><div class="guard"><span class="chip ${x.violations?.length ? "crit" : "ok"}">${x.violations?.length ? "blocked: " + esc(x.violations.join(", ")) : "policy check 9/9 · posted"}</span></div></div>`
+        : x.draft ? `<details><summary>Draft for the person</summary><p>${esc(x.draft)}</p></details>` : ""}
+    </div>`;
+  }).join("") : `<div class="empty">No live reviews yet. Use “Submit a test review” to send one.</div>`;
+  const urgentNew = fresh.filter(x => x.urgent);
+  const latestU = list.slice().reverse().find(x => x.urgent && Date.now() - new Date(x.received_at) < 864e5);
+  $("livebar").hidden = !latestU;
+  if (latestU) {
+    const u = latestU.urgent;
+    $("livebarIn").innerHTML = `<b>LIVE URGENT</b><span>${esc(u.label)} · ${esc(latestU.app)} · ${ago(latestU.received_at)} · paged ${u.paged.map(p => ROLE[p[0]]).join(", ")}</span><a href="#liveSec" style="color:inherit;font-weight:600">See it</a>`;
+    if (urgentNew.length) { $("livebar").classList.remove("flash"); void $("livebar").offsetWidth; $("livebar").classList.add("flash"); document.title = "● URGENT · Review Morning Desk"; }
+  }
+}
+pollLive(); setInterval(pollLive, 15000);
+
+// replay controls
+const JUMPS = [["Aug 6", "2026-08-06", "Child-safety report"], ["Sep 1", "2026-09-01", "Bad release"], ["Sep 9", "2026-09-09", "Fix shipped"],
+  ["Sep 12", "2026-09-12", "Purchases"], ["Sep 17", "2026-09-17", "Lost progress"], ["Sep 20", "2026-09-20", "Store-policy risk"], ["Sep 30", "2026-09-30", "Today"]];
+$("jumps").innerHTML = JUMPS.map(([l, d, t]) => `<button class="jump" data-d="${d}">${l} · ${t}</button>`).join("");
+$("jumps").onclick = e => { const d = e.target.closest("[data-d]")?.dataset.d; if (!d) return; stop(); idx = Math.max(0, MORNINGS.indexOf(d)); render(); };
+$("day").oninput = e => { stop(); idx = +e.target.value; render(); };
+$("moreQ").onclick = () => { showAllQ = !showAllQ; renderQueue(DAYS[idx]); };
+let timer = null;
+function stop() { clearInterval(timer); timer = null; $("playicon").innerHTML = '<path d="M2 1l7 4-7 4z"/>'; $("play").setAttribute("aria-label", "Replay the mornings"); }
+$("play").onclick = () => {
+  if (timer) return stop();
+  if (idx >= 59) idx = 0;
+  $("playicon").innerHTML = '<path d="M2 1h2v8H2zM6 1h2v8H6z"/>'; $("play").setAttribute("aria-label", "Pause");
+  render();
+  timer = setInterval(() => { if (idx >= 59) return stop(); idx++; render(); }, 900);
+};
+render();
+</script>
