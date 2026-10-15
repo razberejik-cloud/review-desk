@@ -209,6 +209,11 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
 .litem .route { font-size: 13px; color: var(--fg-2) }
 .litem .route b { color: var(--fg) }
 .litem.urg .route b.u { color: var(--crit) }
+.track-steps { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12.5px; color: var(--fg-2) }
+.track-steps .st { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface) }
+.track-steps .st.done { border-color: var(--ok); color: var(--ok) }
+.track-steps .st.bad { border-color: var(--crit); color: var(--crit) }
+.litem.ok { border-color: var(--ok); background: var(--ok-soft) }
 @media (prefers-reduced-motion: reduce) { .listen i, .livebar.flash { animation: none } }
 @media (max-width: 1040px) { main.wrap { grid-template-columns: minmax(0, 1fr) } }
 @media (max-width: 720px) {
@@ -678,6 +683,27 @@ function issueFormUrl() {
   if (!h.endsWith("github.io") || !path.length) return null;
   return `https://github.com/${h.split(".")[0]}/${path[0]}/issues/new?template=play-review.yml`;
 }
+function statusText(x) {
+  const u = x.urgent, st = u.status || { state: "open", events: [] }, last = st.events[st.events.length - 1] || {};
+  const left = Math.round((new Date(u.due) - Date.now()) / 60000);
+  if (st.state === "resolved") return `resolved by ${esc(last.by)}`;
+  if (st.state === "acknowledged") return `acknowledged by ${esc(st.events.filter(e => e.event === "acknowledged").pop()?.by || "")} · working on it`;
+  if (st.state === "overdue" || left < 0) return `<u>overdue</u> · not acknowledged · escalated to Head of Product`;
+  return `waiting for acknowledgement · ${left} min left`;
+}
+function trackLine(x) {
+  const u = x.urgent, st = u.status || { state: "open", events: [] }, t0 = new Date(x.received_at);
+  const dur = iso => { const m = Math.round((new Date(iso) - t0) / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min` };
+  const steps = [`<span class="st done">Paged ${hm(x.received_at)}</span>`];
+  for (const e of st.events.slice(1)) {
+    if (e.event === "acknowledged") steps.push(`<span class="st done">Acknowledged by ${esc(e.by)} · +${dur(e.at)}</span>`);
+    if (e.event === "escalated") steps.push(`<span class="st bad">Escalated to ${esc(e.note)} · +${dur(e.at)}</span>`);
+    if (e.event === "resolved") steps.push(`<span class="st done">Resolved by ${esc(e.by)} · +${dur(e.at)}${e.note ? ": " + esc(e.note) : ""}</span>`);
+    if (e.event === "reopened") steps.push(`<span class="st bad">Reopened by ${esc(e.by)}</span>`);
+  }
+  if (st.state !== "resolved") steps.push(`<span class="st ${new Date(u.due) < Date.now() && st.state !== "acknowledged" ? "bad" : ""}">${st.state === "acknowledged" ? "Next: resolve" : "Next: acknowledge by " + hm(u.due)}</span>`);
+  return `<div class="track-steps">${steps.join("<span>→</span>")}</div>${st.state !== "resolved" && x.issue_url ? `<div class="route">Owners reply <code>/ack</code> or <code>/resolve what was done</code> on <a href="${esc(x.issue_url)}" target="_blank" rel="noopener">the alert's issue</a>.</div>` : ""}`;
+}
 async function pollLive() {
   let list;
   try { const r = await fetch("live.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; list = await r.json(); }
@@ -689,23 +715,25 @@ async function pollLive() {
   liveSeen = new Set(list.map(x => x.id));
   const items = list.slice().reverse().slice(0, 6);
   $("litems").innerHTML = items.length ? items.map(x => {
-    const u = x.urgent, isNew = fresh.some(f => f.id === x.id);
-    return `<div class="litem ${u ? "urg" : ""} ${isNew ? "new" : ""}">
+    const u = x.urgent, isNew = fresh.some(f => f.id === x.id), done = u && u.status?.state === "resolved";
+    return `<div class="litem ${u ? (done ? "ok" : "urg") : ""} ${isNew ? "new" : ""}">
       <div class="chips"><span class="chip">${esc(x.app)}</span>${stars(x.stars)}<span class="chip">${esc(x.lang)}</span><span class="chip">v${esc(x.version)}</span>
         <span class="chip">${ago(x.received_at)}</span>${x.issue_url ? `<a class="chip" href="${esc(x.issue_url)}" target="_blank" rel="noopener">issue #${x.issue}</a>` : ""}</div>
       <div class="rv" dir="auto">${esc(x.text)}</div>
       <div class="route"><b class="${u ? "u" : ""}">${esc(LANE_LABEL[x.lane] || x.lane)}</b> · ${esc(x.reason)}${x.flags?.length ? ` · rules: ${esc(x.flags.join(", "))}` : ""}</div>
-      ${u ? `<div class="route"><b class="u">URGENT · ${esc(u.label)}</b> · paged ${u.paged.map(p => ROLE[p[0]] + (p[0] === "pm" ? " · " + esc(x.app) : "")).join(", ")} · respond by ${hm(u.due)} UTC (${u.sla} h)</div>` : ""}
+      ${u ? `<div class="route"><b class="u">URGENT · ${esc(u.label)}</b> · paged ${u.paged.map(p => ROLE[p[0]] + (p[0] === "pm" ? " · " + esc(x.app) : "")).join(", ")} · respond by ${hm(u.due)} UTC (${u.sla} h)</div>${trackLine(x)}` : ""}
       ${x.reply_status ? `<div class="reply"><div class="dev" dir="auto">${esc(x.draft)}</div><div class="guard"><span class="chip ${x.violations?.length ? "crit" : "ok"}">${x.violations?.length ? "blocked: " + esc(x.violations.join(", ")) : "policy check 9/9 · posted"}</span></div></div>`
         : x.draft ? `<details><summary>Draft for the person</summary><p>${esc(x.draft)}</p></details>` : ""}
     </div>`;
   }).join("") : `<div class="empty">No live reviews yet. Use “Submit a test review” to send one.</div>`;
   const urgentNew = fresh.filter(x => x.urgent);
-  const latestU = list.slice().reverse().find(x => x.urgent && Date.now() - new Date(x.received_at) < 864e5);
+  // an alert stays on screen until someone resolves it, however old it is
+  const openU = list.filter(x => x.urgent && x.urgent.status?.state !== "resolved");
+  const latestU = openU[openU.length - 1];
   $("livebar").hidden = !latestU;
   if (latestU) {
-    const u = latestU.urgent;
-    $("livebarIn").innerHTML = `<b>LIVE URGENT</b><span>${esc(u.label)} · ${esc(latestU.app)} · ${ago(latestU.received_at)} · paged ${u.paged.map(p => ROLE[p[0]]).join(", ")}</span><a href="#liveSec" style="color:inherit;font-weight:600">See it</a>`;
+    const u = latestU.urgent, st = statusText(latestU);
+    $("livebarIn").innerHTML = `<b>LIVE URGENT${openU.length > 1 ? " · " + openU.length + " open" : ""}</b><span>${esc(u.label)} · ${esc(latestU.app)} · ${ago(latestU.received_at)} · ${st}</span><a href="#liveSec" style="color:inherit;font-weight:600">See it</a>`;
     if (urgentNew.length) { $("livebar").classList.remove("flash"); void $("livebar").offsetWidth; $("livebar").classList.add("flash"); document.title = "● URGENT · Review Morning Desk"; }
   }
 }

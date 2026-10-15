@@ -102,7 +102,9 @@ def main(body_file, number, url):
             paged.append(("head_of_product", OWNERS["contacts"]["head_of_product"]))
         due = now + timedelta(hours=cfg["sla_h"])
         page = dict(type=typ, label=cfg["label"], sla=cfg["sla_h"], due=due.isoformat(), paged=paged, policy=cfg["policy"],
-                    actions=cfg["actions"], reports_in_window=reports, joined_open_alert=bool(prev))
+                    actions=cfg["actions"], reports_in_window=reports, joined_open_alert=bool(prev),
+                    status=dict(state="open", events=[dict(at=now.isoformat(), event="paged", by="system",
+                                                           note=", ".join(urgent_role(p[0]) for p in paged))]))
 
     entry = dict(id=row["review_id"], issue=int(number), issue_url=url, received_at=now.isoformat(), app=r["app"],
                  stars=r["stars"], lang=r["lang"], version=r["version"], text=r["text"], flags=flags, noise=noise,
@@ -130,6 +132,11 @@ def main(body_file, number, url):
         lines += ["", f"**Automatic reply** ({reply_status}):", f"> {draft}"]
     elif draft:
         lines += ["", f"**Suggested draft for the person:**", f"> {draft}"]
+    if page:
+        lines += ["", "**To track it, reply on this issue:**",
+                  "- `/ack` — I'm on it (stops the escalation clock)",
+                  "- `/resolve what was done` — closes the alert",
+                  f"If nobody acknowledges by {due:%H:%M} UTC, it escalates to the Head of Product."]
     lines += ["", "_The live dashboard updates in about a minute._"]
     open(os.path.join(ROOT, "live", "comment.md"), "w", encoding="utf-8").write("\n".join(lines))
     flag_path = os.path.join(ROOT, "live", "urgent.flag")

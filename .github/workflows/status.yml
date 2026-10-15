@@ -1,0 +1,47 @@
+# Follow-up on an alert: /ack, /resolve <note>, /reopen in a comment on its issue.
+name: Alert follow-up
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  issues: write
+  pages: write
+  id-token: write
+concurrency:
+  group: live-intake
+  cancel-in-progress: false
+jobs:
+  status:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'play-review') &&
+      startsWith(github.event.comment.body, '/') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Update the alert
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          printf '%s' "$BODY" > /tmp/comment.txt
+          python live/status.py comment "${{ github.event.issue.number }}" "${{ github.event.comment.user.login }}" /tmp/comment.txt
+      - name: Save
+        run: |
+          git config user.name "review-desk-bot"
+          git config user.email "review-desk-bot@users.noreply.github.com"
+          git add site/live.json data/reviews.db
+          git commit -m "Alert #${{ github.event.issue.number }} follow-up" || echo "nothing to commit"
+          git pull --rebase && git push
+      - name: Comment and label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash live/post_outputs.sh
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - uses: actions/deploy-pages@v4
