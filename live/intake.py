@@ -100,7 +100,9 @@ def main(body_file, number, url):
     typ = next((t for t, cfg in urgent.TYPES.items() if cfg["flags"] & set(flags)), None)
     if typ:
         cfg = urgent.TYPES[typ]
+        # only alerts still open count: a resolved alert never makes a new report look like a repeat
         prev = [x for x in live if x.get("urgent") and x["urgent"]["type"] == typ and x["app"] == r["app"]
+                and x["urgent"].get("status", {}).get("state") != "resolved"
                 and now - datetime.fromisoformat(x["received_at"]) <= urgent.MERGE_WINDOW]
         reports = len(prev) + 1
         recent = [x for x in prev if now - datetime.fromisoformat(x["received_at"]) <= timedelta(hours=24)]

@@ -235,11 +235,12 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
     <div class="brand">
       <span class="eyebrow">Google Play reviews · 4 apps · 4 languages</span>
       <h1>Review Morning Desk</h1>
+      <span id="todayLine" style="font:600 13px var(--mono);color:var(--crit)"></span>
     </div>
     <div class="replay">
       <button class="play" id="play" aria-label="Replay the mornings"><svg viewBox="0 0 10 10" id="playicon"><path d="M2 1l7 4-7 4z"/></svg></button>
       <div class="morning">
-        <span class="eyebrow">History replay · morning of</span>
+        <span class="eyebrow" id="dayEyebrow">History replay · morning of</span>
         <b id="dayLabel" class="num">—</b>
         <span class="runstate" id="runstate"><i></i>Daily run done 06:06</span>
       </div>
@@ -285,7 +286,7 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
     </section>
 
     <section aria-labelledby="h-i">
-      <div class="sec-head"><h2 id="h-i">Issues to act on</h2><p>One row per problem, all its signals combined. Click a row for the evidence.</p></div>
+      <div class="sec-head"><h2 id="h-i">Issues to act on</h2><p id="issuesNote">One row per problem, all its signals combined. Click a row for the evidence.</p></div>
       <div class="issues" id="issues"></div>
     </section>
 
@@ -363,13 +364,108 @@ const realTotal = s => Object.values(s.c).reduce((a, b) => a + b, 0);
 
 let idx = 59, selected = null, showAllQ = false;
 
+const HIST = DAYS.length;
+let timer = null;
+function paintToday() {
+  const d = new Date();
+  $("todayLine").textContent = "● Today: " + d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) + " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+let LIVE = [], LIVE_DAYS = [], userMoved = false;
+const localDate = iso => new Date(iso).toLocaleDateString("en-CA");
+const todayLocal = () => new Date().toLocaleDateString("en-CA");
+const fmtLocalLong = d => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const fmtLocal = d => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const lt = iso => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const ISSUES_NOTE = "One row per problem, all its signals combined. Click a row for the evidence.";
+
 function render() {
-  const morning = MORNINGS[idx], yday = DAYS[idx];
-  $("dayLabel").textContent = fmtLong(morning);
+  $("day").max = HIST - 1 + LIVE_DAYS.length;
   $("day").value = idx;
+  if (idx >= HIST) return renderLiveDay(LIVE_DAYS[idx - HIST]);
+  const morning = MORNINGS[idx], yday = DAYS[idx];
+  $("dayEyebrow").textContent = "History replay · morning of";
+  $("runstate").hidden = false;
+  $("dayLabel").textContent = fmtLong(morning);
+  $("h-y").textContent = "Yesterday's reviews"; $("h-l").textContent = "This morning's run"; $("h-q").textContent = "Personal reply queue";
+  $("issuesNote").textContent = ISSUES_NOTE;
   renderUrgent(morning);
   renderKpis(morning, yday); renderIssues(morning); renderDetail(morning); renderApps(yday);
   renderLanes(yday); renderQueue(yday); renderLog(morning, yday); renderReplies(yday);
+}
+
+function renderLiveDay(day) {
+  const isToday = day === todayLocal();
+  $("dayEyebrow").textContent = isToday ? "Live · today" : "Live day";
+  $("runstate").hidden = true;
+  $("dayLabel").textContent = fmtLocalLong(day);
+  $("h-y").textContent = isToday ? "Today's reviews" : "Reviews on " + fmtLocal(day);
+  $("h-l").textContent = isToday ? "Today's activity" : "Activity on " + fmtLocal(day);
+  $("h-q").textContent = "Personal reply queue";
+  const items = LIVE.filter(x => localDate(x.received_at) === day && inFilter(x.app));
+  const urg = items.filter(x => x.urgent);
+  const PPL = ["SAFETY", "LEGAL", "HUMAN_VIP", "HUMAN_CHECK"];
+  // KPIs
+  const auto = items.filter(x => ["AUTO", "INCIDENT", "NO_REPLY"].includes(x.lane)).length, ppl = items.filter(x => PPL.includes(x.lane));
+  const openU = urg.filter(x => x.urgent.status?.state !== "resolved");
+  $("ySub").textContent = "live reviews from the GitHub form · updates every 15 seconds";
+  $("kpis").innerHTML = `
+    <div class="kpi"><span class="eyebrow">New reviews</span><span class="v num">${items.length}</span><span class="s">live intake, rules only</span></div>
+    <div class="kpi"><span class="eyebrow">Handled automatically</span><span class="v num">${items.length ? pct(auto / items.length) : "–"}</span><span class="s">${items.filter(x => x.reply_status === "posted").length} replied automatically</span></div>
+    <div class="kpi"><span class="eyebrow">Need a personal reply</span><span class="v num">${ppl.length}</span><span class="s">${ppl.filter(x => x.lane === "SAFETY").length ? `<b style="color:var(--crit)">${ppl.filter(x => x.lane === "SAFETY").length} safety</b> · ` : ""}${ppl.filter(x => x.lane === "LEGAL").length} legal & store risk</span></div>
+    <div class="kpi"><span class="eyebrow">Urgent alerts</span><span class="v num">${urg.length}</span><span class="s">${openU.length ? `<b style="color:var(--crit)">${openU.length} open</b>` : urg.length ? `<b style="color:var(--ok)">all resolved</b>` : "none"}</span></div>`;
+  // urgent cards
+  $("urgentbar").hidden = true;
+  $("urgentSec").hidden = !urg.length;
+  $("ualerts").innerHTML = urg.slice().reverse().map(x => {
+    const u = x.urgent, st = u.status?.state || "open", done = st === "resolved";
+    return `<article class="ualert ${done ? "old" : ""}">
+      <header><span class="t"><b>${esc(u.label)}</b><span>${esc(x.app)}</span><span class="chip ${done ? "ok" : "crit"}">${done ? "RESOLVED" : st.toUpperCase()}</span></span>
+        <span class="chips"><span class="chip">paged ${lt(x.received_at)}</span><span class="chip">answer within ${u.sla} h</span><span class="chip ok">auto-reply blocked</span>
+        ${x.issue_url ? `<a class="chip" href="${esc(x.issue_url)}" target="_blank" rel="noopener">issue #${x.issue}</a>` : ""}</span></header>
+      <div class="ubody">
+        <div><h4>What the player reported</h4><q dir="auto">${esc(x.text)}</q><span class="eyebrow">${lt(x.received_at)} · ${x.stars}★ · ${esc(x.lang)} · v${esc(x.version)}</span>
+          <h4 style="margin-top:12px">Status</h4>${trackLine(x)}</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div><h4>Who was paged</h4><div class="paged">${u.paged.map(([role, addr]) => `<span class="${role === "head_of_product" ? "esc" : ""}" title="${esc(addr)}">${ROLE[role]}${role === "pm" ? " · " + esc(x.app) : ""}</span>`).join("")}</div></div>
+          <div><h4>At risk</h4><span style="font-size:13px">${esc(u.policy)}</span></div>
+          <div><h4>Next steps</h4><ul>${u.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>
+        </div>
+      </div></article>`;
+  }).join("");
+  // history-based sections stay on the latest daily analysis
+  const lastM = MORNINGS[HIST - 1], lastD = DAYS[HIST - 1];
+  $("issuesNote").textContent = "From the daily analysis of the mock history (last run " + fmt(lastM) + "). Live reviews above are handled by the hourly rules.";
+  renderIssues(lastM); renderDetail(lastM); renderApps(lastD); renderLanes(lastD);
+  // queue
+  const q = ppl.slice().reverse();
+  $("qSub").textContent = q.length ? `${q.length} review${q.length > 1 ? "s" : ""} on ${fmtLocal(day)}, newest first` : "No live review needs a personal reply.";
+  $("queue").innerHTML = q.map(x => `<tr>
+    <td class="num">${{ SAFETY: 100, LEGAL: 80, HUMAN_VIP: 60, HUMAN_CHECK: 30 }[x.lane]}</td><td><span class="lane ${x.lane}">${LANE_NAME[x.lane]}</span></td>
+    <td>${esc(x.app)}<br><span class="eyebrow">v${esc(x.version)} · ${esc(x.lang)}</span></td><td>${stars(x.stars)}</td>
+    <td class="txt"><span dir="auto">${esc(x.text)}</span><details><summary>Suggested reply</summary><p>${esc(x.draft)}</p></details></td>
+    <td>${esc(x.reason)}<br><span class="eyebrow">${esc(x.team)}</span></td><td class="num">${x.sla} h</td></tr>`).join("") || `<tr><td colspan="7" class="empty">Queue is empty.</td></tr>`;
+  $("moreQ").hidden = true;
+  // activity log
+  const ev = [];
+  for (const x of items) {
+    ev.push([x.received_at, `Review received · ${esc(x.app)} ${x.stars}★ → <b>${esc(LANE_LABEL[x.lane] || x.lane)}</b>`, !!x.urgent]);
+    if (x.urgent) for (const e of (x.urgent.status?.events || [])) {
+      if (e.event === "paged") ev.push([e.at, `<b>Urgent page</b>: ${esc(x.urgent.label)} in ${esc(x.app)} to ${x.urgent.paged.map(p => ROLE[p[0]]).join(", ")}`, true]);
+      if (e.event === "acknowledged") ev.push([e.at, `<b>Acknowledged</b> by ${esc(e.by)} · ${esc(x.urgent.label)}, ${esc(x.app)}`]);
+      if (e.event === "resolved") ev.push([e.at, `<b>Resolved</b> by ${esc(e.by)}${e.note ? ": " + esc(e.note) : ""}`]);
+      if (e.event === "escalated") ev.push([e.at, `<b>Escalated</b> to ${esc(e.note)} (no acknowledgement in time)`, true]);
+      if (e.event === "reopened") ev.push([e.at, `<b>Reopened</b> by ${esc(e.by)}`, true]);
+    }
+  }
+  ev.sort((a, b) => a[0].localeCompare(b[0]));
+  $("log").innerHTML = ev.length ? ev.map(([t, h, a]) => `<li class="${a ? "alert" : ""}"><time>${lt(t)}</time><div>${h}</div></li>`).join("") : `<li><time>–</time><div>No live activity on this day yet.</div></li>`;
+  // automatic replies
+  const reps = items.filter(x => x.reply_status).slice().reverse().slice(0, 5);
+  $("rSub").textContent = "Posted from live reviews";
+  $("replies").innerHTML = reps.map(x => `<div class="reply"><div class="chips"><span class="chip">${esc(x.app)}</span><span class="chip">${esc(CAT[x.category] || x.category || "")}</span><span class="chip">${esc(x.lang)}</span></div>
+      <div class="rv">${stars(x.stars)} <span dir="auto">${esc(x.text)}</span></div><div class="dev" dir="auto">${esc(x.draft)}</div>
+      <div class="guard"><span class="chip ${x.violations?.length ? "crit" : "ok"}">${x.violations?.length ? "blocked" : "policy check 9/9"}</span></div></div>`).join("")
+    || `<div class="empty">No automatic replies from live reviews on this day.</div>`;
 }
 
 const ROLE = { pm: "Product manager", legal: "Legal on-call", trust_safety: "Trust & Safety", dpo: "Privacy officer",
@@ -677,7 +773,7 @@ renderFilter();
 const LANE_LABEL = { SAFETY: "Safety · personal reply", LEGAL: "Legal & store risk · personal reply", HUMAN_VIP: "Player support · personal reply",
   HUMAN_CHECK: "Check · personal reply", AUTO: "Automatic reply", INCIDENT: "Known-incident reply", NO_REPLY: "No reply (noise)" };
 let liveSeen = null;
-const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago" };
+const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " days ago" };
 function issueFormUrl() {
   const h = location.hostname, path = location.pathname.split("/").filter(Boolean);
   if (!h.endsWith("github.io") || !path.length) return null;
@@ -710,18 +806,25 @@ async function pollLive() {
   try { const r = await fetch("live.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; list = await r.json(); }
   catch (e) { return; }
   $("liveSec").hidden = false;
+  const curDay = idx >= HIST ? LIVE_DAYS[idx - HIST] : null;
+  LIVE = list;
+  LIVE_DAYS = [...new Set(list.map(x => localDate(x.received_at)).concat(todayLocal()))].sort();
+  buildJumps();
+  if (!userMoved) idx = HIST + LIVE_DAYS.indexOf(todayLocal());
+  else if (curDay) idx = HIST + LIVE_DAYS.indexOf(curDay);
+  if (!timer && (idx >= HIST || !userMoved)) render();
   const nowD = new Date();
   $("liveToday").textContent = "today, " + nowD.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   const todays = list.filter(x => new Date(x.received_at).toDateString() === nowD.toDateString());
   const openN = list.filter(x => x.urgent && x.urgent.status?.state !== "resolved").length;
   const ppl = todays.filter(x => ["SAFETY", "LEGAL", "HUMAN_VIP", "HUMAN_CHECK"].includes(x.lane)).length;
   $("liveStats").textContent = `${todays.length} review${todays.length === 1 ? "" : "s"} today · ${ppl} for a personal reply · ${openN} urgent alert${openN === 1 ? "" : "s"} open`;
-  if (!document.getElementById("livePill")) {
+  if (false) {
     const a = document.createElement("a"); a.id = "livePill"; a.href = "#liveSec";
     a.style.cssText = "display:inline-flex;gap:6px;align-items:center;font:600 12px var(--mono);color:var(--crit);text-decoration:none;margin-top:4px";
     $("runstate").after(a);
   }
-  $("livePill").innerHTML = `● LIVE · ${nowD.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${nowD.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  if (document.getElementById("livePill")) $("livePill").innerHTML = `● LIVE · ${nowD.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${nowD.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
   const form = issueFormUrl(); if (form) $("submitLink").href = form; else $("submitLink").hidden = true;
   $("listen").innerHTML = `<i></i>Listening · checked ${new Date().toLocaleTimeString("en-GB")}`;
   const fresh = liveSeen ? list.filter(x => !liveSeen.has(x.id)) : [];
@@ -750,23 +853,37 @@ async function pollLive() {
     if (urgentNew.length) { $("livebar").classList.remove("flash"); void $("livebar").offsetWidth; $("livebar").classList.add("flash"); document.title = "● URGENT · Review Morning Desk"; }
   }
 }
+paintToday(); setInterval(paintToday, 30000);
 pollLive(); setInterval(pollLive, 15000);
 
 // replay controls
 const JUMPS = [["Aug 6", "2026-08-06", "Child-safety report"], ["Sep 1", "2026-09-01", "Bad release"], ["Sep 9", "2026-09-09", "Fix shipped"],
   ["Sep 12", "2026-09-12", "Purchases"], ["Sep 17", "2026-09-17", "Lost progress"], ["Sep 20", "2026-09-20", "Store-policy risk"], ["Sep 30", "2026-09-30", "End of history"]];
-$("jumps").innerHTML = JUMPS.map(([l, d, t]) => `<button class="jump" data-d="${d}">${l} · ${t}</button>`).join("");
-$("jumps").onclick = e => { const d = e.target.closest("[data-d]")?.dataset.d; if (!d) return; stop(); idx = Math.max(0, MORNINGS.indexOf(d)); render(); };
-$("day").oninput = e => { stop(); idx = +e.target.value; render(); };
-$("moreQ").onclick = () => { showAllQ = !showAllQ; renderQueue(DAYS[idx]); };
-let timer = null;
+function buildJumps() {
+  const live = LIVE_DAYS.map(d => {
+    const u = LIVE.filter(x => x.urgent && localDate(x.received_at) === d);
+    const label = d === todayLocal() ? "Today" : (u.length ? [...new Set(u.map(x => x.urgent.label))].join(", ") : "Live reviews");
+    const mark = u.length ? (u.every(x => x.urgent.status?.state === "resolved") ? " ✓" : " ●") : "";
+    return `<button class="jump" data-live="${d}" style="${u.some(x => x.urgent.status?.state !== "resolved") ? "border-color:var(--crit);color:var(--crit)" : ""}">${fmtLocal(d)} · ${esc(label)}${mark}</button>`;
+  });
+  $("jumps").innerHTML = JUMPS.map(([l, d, t]) => `<button class="jump" data-d="${d}">${l} · ${t}</button>`).join("") + live.join("");
+}
+buildJumps();
+$("jumps").onclick = e => {
+  const b = e.target.closest("[data-d],[data-live]"); if (!b) return; stop(); userMoved = true;
+  idx = b.dataset.live ? HIST + LIVE_DAYS.indexOf(b.dataset.live) : Math.max(0, MORNINGS.indexOf(b.dataset.d)); render();
+};
+$("day").oninput = e => { stop(); userMoved = true; idx = +e.target.value; render(); };
+$("moreQ").onclick = () => { showAllQ = !showAllQ; if (idx < HIST) renderQueue(DAYS[idx]); };
 function stop() { clearInterval(timer); timer = null; $("playicon").innerHTML = '<path d="M2 1l7 4-7 4z"/>'; $("play").setAttribute("aria-label", "Replay the mornings"); }
 $("play").onclick = () => {
   if (timer) return stop();
-  if (idx >= 59) idx = 0;
+  userMoved = true;
+  const last = HIST - 1 + LIVE_DAYS.length;
+  if (idx >= last) idx = 0;
   $("playicon").innerHTML = '<path d="M2 1h2v8H2zM6 1h2v8H6z"/>'; $("play").setAttribute("aria-label", "Pause");
   render();
-  timer = setInterval(() => { if (idx >= 59) return stop(); idx++; render(); }, 900);
+  timer = setInterval(() => { if (idx >= last) return stop(); idx++; render(); }, 900);
 };
 render();
 </script>
