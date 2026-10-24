@@ -102,6 +102,10 @@ RISK = {
         r"\b(sohn|tochter|kind|kinder)\b.*\b(nachricht|chat|fremd|erwachsen|wohnt)", r"\b(fremde[rn]?|erwachsene[rn]?)\b",
         r"\b(filh[oa]|criança)\b.*\b(mensag|chat|estranh|adulto|mora)", r"\b(estranh[oa]|adulto)\b",
         r"(הבן|הבת|הילד|ילדים|לילדים).*(הודעות|צ'אט|זר|מבוגר|גר|גרה)", r"\b(זר|מבוגר)\b", r"לא בטוח לילדים",
+        # sexual content / harassment: always a safety case in a game with young players
+        r"\b(sexual|sexually|harass\w*|nude|naked|grooming|molest\w*|pedo\w*)\b",
+        r"(sexuell|belästig|nackt|pädophil)", r"(assédio|assediad|pedófil|\bnudes?\b)",
+        r"(מיני|מינית|הטרד|עירום|פדופיל|תמונות לא צנועות|נגיעות)",
     ],
     "payment": [
         # an act of paying + money symbols; NOT generic "costs money" (that is pricing, not a payment problem)

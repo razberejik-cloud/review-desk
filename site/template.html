@@ -239,12 +239,12 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
     <div class="replay">
       <button class="play" id="play" aria-label="Replay the mornings"><svg viewBox="0 0 10 10" id="playicon"><path d="M2 1l7 4-7 4z"/></svg></button>
       <div class="morning">
-        <span class="eyebrow">Morning of</span>
+        <span class="eyebrow">History replay · morning of</span>
         <b id="dayLabel" class="num">—</b>
         <span class="runstate" id="runstate"><i></i>Daily run done 06:06</span>
       </div>
       <div class="track">
-        <label class="eyebrow" for="day">Replay the 60 days the system ran (drag, or press play)</label>
+        <label class="eyebrow" for="day">60 days of mock history, Aug 1 – Sep 30 (drag or press play). Today's reviews are in Live intake.</label>
         <input type="range" id="day" min="0" max="59" value="59">
         <div class="jumps" id="jumps"></div>
       </div>
@@ -260,7 +260,7 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
     <section aria-labelledby="h-live" id="liveSec" hidden>
       <div class="live">
         <div class="livehead">
-          <div><span class="eyebrow">Running now on GitHub Actions</span><h2 id="h-live">Live intake</h2></div>
+          <div><span class="eyebrow">Running now on GitHub Actions</span><h2 id="h-live">Live intake · <span id="liveToday"></span></h2><div id="liveStats" style="font-size:13px;color:var(--fg-2);margin-top:2px"></div></div>
           <span class="listen" id="listen"><i></i>Listening</span>
           <a class="submit" id="submitLink" href="#" target="_blank" rel="noopener">Submit a test review</a>
         </div>
@@ -694,14 +694,15 @@ function statusText(x) {
 function trackLine(x) {
   const u = x.urgent, st = u.status || { state: "open", events: [] }, t0 = new Date(x.received_at);
   const dur = iso => { const m = Math.round((new Date(iso) - t0) / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min` };
-  const steps = [`<span class="st done">Paged ${hm(x.received_at)}</span>`];
+  const lt = iso => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const steps = [`<span class="st done">Paged ${lt(x.received_at)}</span>`];
   for (const e of st.events.slice(1)) {
     if (e.event === "acknowledged") steps.push(`<span class="st done">Acknowledged by ${esc(e.by)} · +${dur(e.at)}</span>`);
     if (e.event === "escalated") steps.push(`<span class="st bad">Escalated to ${esc(e.note)} · +${dur(e.at)}</span>`);
     if (e.event === "resolved") steps.push(`<span class="st done">Resolved by ${esc(e.by)} · +${dur(e.at)}${e.note ? ": " + esc(e.note) : ""}</span>`);
     if (e.event === "reopened") steps.push(`<span class="st bad">Reopened by ${esc(e.by)}</span>`);
   }
-  if (st.state !== "resolved") steps.push(`<span class="st ${new Date(u.due) < Date.now() && st.state !== "acknowledged" ? "bad" : ""}">${st.state === "acknowledged" ? "Next: resolve" : "Next: acknowledge by " + hm(u.due)}</span>`);
+  if (st.state !== "resolved") steps.push(`<span class="st ${new Date(u.due) < Date.now() && st.state !== "acknowledged" ? "bad" : ""}">${st.state === "acknowledged" ? "Next: resolve" : "Next: acknowledge by " + lt(u.due)}</span>`);
   return `<div class="track-steps">${steps.join("<span>→</span>")}</div>${st.state !== "resolved" && x.issue_url ? `<div class="route">Owners reply <code>/ack</code> or <code>/resolve what was done</code> on <a href="${esc(x.issue_url)}" target="_blank" rel="noopener">the alert's issue</a>.</div>` : ""}`;
 }
 async function pollLive() {
@@ -709,6 +710,18 @@ async function pollLive() {
   try { const r = await fetch("live.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw 0; list = await r.json(); }
   catch (e) { return; }
   $("liveSec").hidden = false;
+  const nowD = new Date();
+  $("liveToday").textContent = "today, " + nowD.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const todays = list.filter(x => new Date(x.received_at).toDateString() === nowD.toDateString());
+  const openN = list.filter(x => x.urgent && x.urgent.status?.state !== "resolved").length;
+  const ppl = todays.filter(x => ["SAFETY", "LEGAL", "HUMAN_VIP", "HUMAN_CHECK"].includes(x.lane)).length;
+  $("liveStats").textContent = `${todays.length} review${todays.length === 1 ? "" : "s"} today · ${ppl} for a personal reply · ${openN} urgent alert${openN === 1 ? "" : "s"} open`;
+  if (!document.getElementById("livePill")) {
+    const a = document.createElement("a"); a.id = "livePill"; a.href = "#liveSec";
+    a.style.cssText = "display:inline-flex;gap:6px;align-items:center;font:600 12px var(--mono);color:var(--crit);text-decoration:none;margin-top:4px";
+    $("runstate").after(a);
+  }
+  $("livePill").innerHTML = `● LIVE · ${nowD.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${nowD.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
   const form = issueFormUrl(); if (form) $("submitLink").href = form; else $("submitLink").hidden = true;
   $("listen").innerHTML = `<i></i>Listening · checked ${new Date().toLocaleTimeString("en-GB")}`;
   const fresh = liveSeen ? list.filter(x => !liveSeen.has(x.id)) : [];
@@ -721,7 +734,7 @@ async function pollLive() {
         <span class="chip">${ago(x.received_at)}</span>${x.issue_url ? `<a class="chip" href="${esc(x.issue_url)}" target="_blank" rel="noopener">issue #${x.issue}</a>` : ""}</div>
       <div class="rv" dir="auto">${esc(x.text)}</div>
       <div class="route"><b class="${u ? "u" : ""}">${esc(LANE_LABEL[x.lane] || x.lane)}</b> · ${esc(x.reason)}${x.flags?.length ? ` · rules: ${esc(x.flags.join(", "))}` : ""}</div>
-      ${u ? `<div class="route"><b class="u">URGENT · ${esc(u.label)}</b> · paged ${u.paged.map(p => ROLE[p[0]] + (p[0] === "pm" ? " · " + esc(x.app) : "")).join(", ")} · respond by ${hm(u.due)} UTC (${u.sla} h)</div>${trackLine(x)}` : ""}
+      ${u ? `<div class="route"><b class="u">URGENT · ${esc(u.label)}</b> · paged ${u.paged.map(p => ROLE[p[0]] + (p[0] === "pm" ? " · " + esc(x.app) : "")).join(", ")} · respond by ${new Date(u.due).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} (${u.sla} h)</div>${trackLine(x)}` : ""}
       ${x.reply_status ? `<div class="reply"><div class="dev" dir="auto">${esc(x.draft)}</div><div class="guard"><span class="chip ${x.violations?.length ? "crit" : "ok"}">${x.violations?.length ? "blocked: " + esc(x.violations.join(", ")) : "policy check 9/9 · posted"}</span></div></div>`
         : x.draft ? `<details><summary>Draft for the person</summary><p>${esc(x.draft)}</p></details>` : ""}
     </div>`;

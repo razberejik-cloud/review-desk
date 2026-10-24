@@ -72,27 +72,5 @@
     ]
    }
   }
- },
- {
-  "id": "live-2",
-  "issue": 2,
-  "issue_url": "https://github.com/razberejik-cloud/review-desk/issues/2",
-  "received_at": "2026-10-24T13:21:30+00:00",
-  "app": "PeleGame",
-  "stars": 1,
-  "lang": "en",
-  "version": "5.2.0",
-  "text": "הטרדה מינית עי איש באפלקציה",
-  "flags": [],
-  "noise": null,
-  "category": "other",
-  "lane": "HUMAN_CHECK",
-  "reason": "angry but unclear topic",
-  "team": "Community team",
-  "sla": 48,
-  "draft": "Thanks for the detailed feedback, and sorry for the trouble. Our team is looking into it. You can reach us anytime at support.example.com.",
-  "reply_status": null,
-  "violations": [],
-  "urgent": null
  }
 ]

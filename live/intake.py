@@ -72,6 +72,10 @@ def topic(text, flags):
 
 def main(body_file, number, url):
     r = parse_issue(open(body_file, encoding="utf-8").read())
+    # people sometimes write the review in the issue title too: read it as part of the review
+    title = os.environ.get("ISSUE_TITLE", "").strip()
+    if title and title.lower() not in ("test review", r["text"].lower()) and title not in r["text"]:
+        r["text"] = f"{title}. {r['text']}" if r["text"] else title
     now = datetime.now(timezone.utc).replace(microsecond=0)
     flags = classify.risk_flags(r["text"], None, r["stars"])
     noise = None if set(flags) & classify.PROTECTED_FLAGS else classify.noise_reason(r["text"])
