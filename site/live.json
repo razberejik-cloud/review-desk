@@ -146,5 +146,27 @@
     ]
    }
   }
+ },
+ {
+  "id": "live-3",
+  "issue": 3,
+  "issue_url": "https://github.com/razberejik-cloud/review-desk/issues/3",
+  "received_at": "2026-10-24T13:46:54+00:00",
+  "app": "Smash Runner",
+  "stars": 1,
+  "lang": "en",
+  "version": "5.2.0",
+  "text": "No funciona. Intenté volver a entrar al juego, pero no carga.",
+  "flags": [],
+  "noise": null,
+  "category": "other",
+  "lane": "HUMAN_CHECK",
+  "reason": "angry but unclear topic",
+  "team": "Community team",
+  "sla": 48,
+  "draft": "Thanks for the detailed feedback, and sorry for the trouble. Our team is looking into it. You can reach us anytime at support.example.com.",
+  "reply_status": null,
+  "violations": [],
+  "urgent": null
  }
 ]
