@@ -754,7 +754,7 @@ pollLive(); setInterval(pollLive, 15000);
 
 // replay controls
 const JUMPS = [["Aug 6", "2026-08-06", "Child-safety report"], ["Sep 1", "2026-09-01", "Bad release"], ["Sep 9", "2026-09-09", "Fix shipped"],
-  ["Sep 12", "2026-09-12", "Purchases"], ["Sep 17", "2026-09-17", "Lost progress"], ["Sep 20", "2026-09-20", "Store-policy risk"], ["Sep 30", "2026-09-30", "Today"]];
+  ["Sep 12", "2026-09-12", "Purchases"], ["Sep 17", "2026-09-17", "Lost progress"], ["Sep 20", "2026-09-20", "Store-policy risk"], ["Sep 30", "2026-09-30", "End of history"]];
 $("jumps").innerHTML = JUMPS.map(([l, d, t]) => `<button class="jump" data-d="${d}">${l} · ${t}</button>`).join("");
 $("jumps").onclick = e => { const d = e.target.closest("[data-d]")?.dataset.d; if (!d) return; stop(); idx = Math.max(0, MORNINGS.indexOf(d)); render(); };
 $("day").oninput = e => { stop(); idx = +e.target.value; render(); };
