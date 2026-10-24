@@ -123,7 +123,7 @@
    "reports_in_window": 1,
    "joined_open_alert": false,
    "status": {
-    "state": "acknowledged",
+    "state": "resolved",
     "events": [
      {
       "at": "2026-10-24T13:25:30+00:00",
@@ -136,6 +136,12 @@
       "event": "acknowledged",
       "by": "razberejik-cloud",
       "note": ""
+     },
+     {
+      "at": "2026-10-24T13:31:11+00:00",
+      "event": "resolved",
+      "by": "razberejik-cloud",
+      "note": "what was done"
      }
     ]
    }
