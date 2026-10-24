@@ -72,5 +72,67 @@
     ]
    }
   }
+ },
+ {
+  "id": "live-2",
+  "issue": 2,
+  "issue_url": "https://github.com/razberejik-cloud/review-desk/issues/2",
+  "received_at": "2026-10-24T13:25:30+00:00",
+  "app": "PeleGame",
+  "stars": 1,
+  "lang": "en",
+  "version": "5.2.0",
+  "text": "הילד שלי ממש חווה הטרדה מינית באפלקציה. הטרדה מינית עי איש באפלקציה",
+  "flags": [
+   "child_safety"
+  ],
+  "noise": null,
+  "category": "other",
+  "lane": "SAFETY",
+  "reason": "child safety report",
+  "team": "Trust & Safety + Legal",
+  "sla": 1,
+  "draft": "Thank you for telling us, and we're very sorry. Keeping kids safe is our top priority. Our safety team is reviewing this now. Please also use Report in the player's profile so we can act on the account. We'd like to follow up with you at support.example.com.",
+  "reply_status": null,
+  "violations": [],
+  "urgent": {
+   "type": "CHILD_SAFETY",
+   "label": "Child safety",
+   "sla": 1,
+   "due": "2026-10-24T14:25:30+00:00",
+   "paged": [
+    [
+     "pm",
+     "pm.pelegame@example.com"
+    ],
+    [
+     "legal",
+     "legal-oncall@example.com"
+    ],
+    [
+     "trust_safety",
+     "trust-safety@example.com"
+    ]
+   ],
+   "policy": "Google Play child safety standards and Families policy",
+   "actions": [
+    "Trust & Safety reviews the reported account and chat logs now",
+    "Preserve evidence; Legal decides on reporting to authorities",
+    "Personal reply drafted by Trust & Safety, approved by Legal"
+   ],
+   "reports_in_window": 1,
+   "joined_open_alert": false,
+   "status": {
+    "state": "open",
+    "events": [
+     {
+      "at": "2026-10-24T13:25:30+00:00",
+      "event": "paged",
+      "by": "system",
+      "note": "Product manager, Legal on-call, Trust & Safety"
+     }
+    ]
+   }
+  }
  }
 ]
