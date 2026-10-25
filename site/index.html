@@ -236,6 +236,7 @@ details p { margin: 6px 0 0; padding: 8px 10px; background: var(--surface-2); bo
       <span class="eyebrow">Google Play reviews · 4 apps · 4 languages</span>
       <h1>Review Morning Desk</h1>
       <span id="todayLine" style="font:600 13px var(--mono);color:var(--crit)"></span>
+      <a class="submit" id="submitTop" href="https://github.com/razberejik-cloud/review-desk/issues/new?template=play-review.yml" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;width:max-content">+ Submit a test review</a>
     </div>
     <div class="replay">
       <button class="play" id="play" aria-label="Replay the mornings"><svg viewBox="0 0 10 10" id="playicon"><path d="M2 1l7 4-7 4z"/></svg></button>
@@ -825,7 +826,7 @@ async function pollLive() {
     $("runstate").after(a);
   }
   if (document.getElementById("livePill")) $("livePill").innerHTML = `● LIVE · ${nowD.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${nowD.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
-  const form = issueFormUrl(); if (form) $("submitLink").href = form; else $("submitLink").hidden = true;
+  const form = issueFormUrl(); if (form) { $("submitLink").href = form; $("submitTop").href = form; } else $("submitLink").hidden = true;
   $("listen").innerHTML = `<i></i>Listening · checked ${new Date().toLocaleTimeString("en-GB")}`;
   const fresh = liveSeen ? list.filter(x => !liveSeen.has(x.id)) : [];
   liveSeen = new Set(list.map(x => x.id));
