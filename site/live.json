@@ -242,5 +242,27 @@
     ]
    }
   }
+ },
+ {
+  "id": "live-5",
+  "issue": 5,
+  "issue_url": "https://github.com/razberejik-cloud/review-desk/issues/5",
+  "received_at": "2026-10-25T15:38:21+00:00",
+  "app": "PeleGame",
+  "stars": 1,
+  "lang": "en",
+  "version": "5.2.0",
+  "text": "older guy is arreste my child. old man are ereest my child",
+  "flags": [],
+  "noise": null,
+  "category": "other",
+  "lane": "HUMAN_CHECK",
+  "reason": "angry but unclear topic",
+  "team": "Community team",
+  "sla": 48,
+  "draft": "Thanks for the detailed feedback, and sorry for the trouble. Our team is looking into it. You can reach us anytime at support.example.com.",
+  "reply_status": null,
+  "violations": [],
+  "urgent": null
  }
 ]
