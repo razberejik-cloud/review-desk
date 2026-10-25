@@ -168,5 +168,67 @@
   "reply_status": null,
   "violations": [],
   "urgent": null
+ },
+ {
+  "id": "live-4",
+  "issue": 4,
+  "issue_url": "https://github.com/razberejik-cloud/review-desk/issues/4",
+  "received_at": "2026-10-25T12:39:12+00:00",
+  "app": "PeleGame",
+  "stars": 1,
+  "lang": "en",
+  "version": "5.2.0",
+  "text": "תשלום שלא התקבל ואיום בעורך דין. שילמתי ₪79.90 על חבילת יהלומים וזה לא הגיע. פניתי לתמיכה פעמיים ואף אחד לא עונה. אם לא אקבל החזר כספי עד סוף השבוע אני פונה לעורך דין ולהגנת הצרכן.",
+  "flags": [
+   "payment",
+   "legal"
+  ],
+  "noise": null,
+  "category": "payment_purchase",
+  "lane": "LEGAL",
+  "reason": "legal threat",
+  "team": "Legal",
+  "sla": 24,
+  "draft": "Thank you for raising this. We take it seriously and our team will look into it. Please contact us at support.example.com so we can follow up with you directly.",
+  "reply_status": null,
+  "violations": [],
+  "urgent": {
+   "type": "LEGAL",
+   "label": "Legal threat",
+   "sla": 4,
+   "due": "2026-10-25T16:39:12+00:00",
+   "paged": [
+    [
+     "legal",
+     "legal-oncall@example.com"
+    ],
+    [
+     "pm",
+     "pm.pelegame@example.com"
+    ],
+    [
+     "support_lead",
+     "support-lead@example.com"
+    ]
+   ],
+   "policy": "Consumer protection and payments (refund and billing obligations)",
+   "actions": [
+    "Support lead checks the player's orders today",
+    "Legal approves any reply that mentions money or responsibility"
+   ],
+   "reports_in_window": 1,
+   "joined_open_alert": false,
+   "status": {
+    "state": "open",
+    "events": [
+     {
+      "at": "2026-10-25T12:39:12+00:00",
+      "event": "paged",
+      "by": "system",
+      "note": "Legal on-call, Product manager, Support lead"
+     }
+    ]
+   }
+  }
  }
 ]
