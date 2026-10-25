@@ -12,6 +12,7 @@ alert_events table of data/reviews.db. Writes live/out/<issue>.md for each issue
 that needs a comment, and live/out/actions.txt with label/close actions.
 """
 import json
+import re
 import os
 import sqlite3
 import sys
@@ -59,7 +60,10 @@ def comment(issue, user, body_file):
         return
     st = entry["urgent"]["status"]
     text = open(body_file, encoding="utf-8").read().strip()
-    cmd, _, note = text.partition(" ")
+    m = re.search(r"(/ack|/resolve|/reopen)\b\s*(.*)", text, re.IGNORECASE | re.DOTALL)
+    if not m:
+        return
+    cmd, note = m.group(1), m.group(2)
     cmd = cmd.lower()
     received = datetime.fromisoformat(entry["received_at"])
     if cmd == "/ack" and st["state"] in ("open", "overdue"):

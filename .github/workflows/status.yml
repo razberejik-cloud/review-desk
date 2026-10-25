@@ -15,13 +15,15 @@ jobs:
   status:
     if: >-
       (contains(github.event.issue.labels.*.name, 'play-review') || contains(github.event.issue.body, '### Review text')) &&
-      startsWith(github.event.comment.body, '/') &&
+      (contains(github.event.comment.body, '/ack') || contains(github.event.comment.body, '/resolve') || contains(github.event.comment.body, '/reopen')) &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     environment:
       name: github-pages
     steps:
       - uses: actions/checkout@v4
+      - name: Get the latest data
+        run: git pull -q --rebase origin main || true
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Update the alert

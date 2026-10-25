@@ -22,6 +22,8 @@ jobs:
       name: github-pages
     steps:
       - uses: actions/checkout@v4
+      - name: Get the latest data
+        run: git pull -q --rebase origin main || true
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install numpy
